@@ -2,6 +2,12 @@ batsman — Shared BATS Test Infrastructure
 Copyright (C) 2002-2026 R-fx Networks <proj@rfxn.com>
 https://github.com/rfxn/batsman
 
+- 1.0.1 | Feb 27 2026:
+[New] include/Makefile.tests — parameterized GNU Make include with per-OS,
+      tier-grouped, and cross-OS parallel targets via $(eval $(call))
+[New] .github/workflows/test.yml — reusable CI workflow with two-phase
+      Docker build, GHA cache for base images, workflow_call interface
+
 - 1.0.0 | Feb 26 2026:
 [New] Initial release
 [New] scripts/install-bats.sh — shared BATS installer with TLS fallback

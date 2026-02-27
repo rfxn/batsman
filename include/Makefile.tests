@@ -3,5 +3,83 @@
 # Copyright (C) 2002-2026 R-fx Networks <proj@rfxn.com>
 # GNU GPL v2 — see LICENSE
 #
-# Projects set variables then: include infra/include/Makefile.tests
-# Stub — implemented in Phase 5
+# Usage: Set variables, then include this file.
+#
+#   BATSMAN_OS_MODERN := debian12 rocky9 ubuntu2404
+#   BATSMAN_OS_LEGACY := centos7 rocky8 ubuntu2004
+#   BATSMAN_OS_DEEP   := centos6 ubuntu1204
+#   BATSMAN_OS_EXTRA  :=
+#   BATSMAN_OS_ALL    := $(BATSMAN_OS_MODERN) $(BATSMAN_OS_LEGACY) $(BATSMAN_OS_DEEP) $(BATSMAN_OS_EXTRA)
+#   BATSMAN_RUN_TESTS := ./run-tests.sh
+#
+#   include infra/include/Makefile.tests
+
+# Cross-OS parallelism: 2x CPU cores, minimum 1
+PARALLEL_JOBS ?= $(shell echo $$(( $$(nproc) * 2 )) | awk '{ print ($$1 < 1) ? 1 : $$1 }')
+
+# ---------------------------------------------------------------------------
+# Core targets (defined first so 'test' is the default goal)
+# ---------------------------------------------------------------------------
+.PHONY: test test-serial test-verbose
+
+test:
+	$(BATSMAN_RUN_TESTS) --parallel
+
+test-serial:
+	$(BATSMAN_RUN_TESTS)
+
+test-verbose:
+	$(BATSMAN_RUN_TESTS) --formatter pretty
+
+# ---------------------------------------------------------------------------
+# Per-OS target generation: test-<os> for each OS in BATSMAN_OS_ALL
+# ---------------------------------------------------------------------------
+define _batsman_os_target
+.PHONY: test-$(1)
+test-$(1):
+	$$(BATSMAN_RUN_TESTS) --os $(1) --parallel
+endef
+
+$(foreach _os,$(BATSMAN_OS_ALL),$(eval $(call _batsman_os_target,$(_os))))
+
+# ---------------------------------------------------------------------------
+# Tier group targets (sequential across OS, parallel within each)
+# ---------------------------------------------------------------------------
+.PHONY: test-modern test-legacy test-deep-legacy test-all
+
+test-modern:
+	for os in $(BATSMAN_OS_MODERN); do $(BATSMAN_RUN_TESTS) --os $$os --parallel || exit 1; done
+
+test-legacy:
+	for os in $(BATSMAN_OS_LEGACY); do $(BATSMAN_RUN_TESTS) --os $$os --parallel || exit 1; done
+
+test-deep-legacy:
+	@if [ -n "$(BATSMAN_OS_DEEP)" ]; then \
+		for os in $(BATSMAN_OS_DEEP); do $(BATSMAN_RUN_TESTS) --os $$os --parallel || exit 1; done; \
+	fi
+
+test-all:
+	for os in $(BATSMAN_OS_ALL); do $(BATSMAN_RUN_TESTS) --os $$os --parallel || exit 1; done
+
+# ---------------------------------------------------------------------------
+# Cross-OS parallel targets (multiple OS tests running concurrently)
+# ---------------------------------------------------------------------------
+.PHONY: test-modern-parallel test-legacy-parallel test-deep-legacy-parallel test-all-parallel
+
+test-modern-parallel:
+	printf '%s\n' $(BATSMAN_OS_MODERN) | \
+	  xargs -P $(PARALLEL_JOBS) -I{} $(BATSMAN_RUN_TESTS) --os {} --parallel
+
+test-legacy-parallel:
+	printf '%s\n' $(BATSMAN_OS_LEGACY) | \
+	  xargs -P $(PARALLEL_JOBS) -I{} $(BATSMAN_RUN_TESTS) --os {} --parallel
+
+test-deep-legacy-parallel:
+	@if [ -n "$(BATSMAN_OS_DEEP)" ]; then \
+		printf '%s\n' $(BATSMAN_OS_DEEP) | \
+		xargs -P $(PARALLEL_JOBS) -I{} $(BATSMAN_RUN_TESTS) --os {} --parallel; \
+	fi
+
+test-all-parallel:
+	printf '%s\n' $(BATSMAN_OS_ALL) | \
+	  xargs -P $(PARALLEL_JOBS) -I{} $(BATSMAN_RUN_TESTS) --os {} --parallel

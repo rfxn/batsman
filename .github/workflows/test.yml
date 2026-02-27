@@ -2,11 +2,82 @@
 # Copyright (C) 2002-2026 R-fx Networks <proj@rfxn.com>
 # GNU GPL v2 — see LICENSE
 #
-# Stub — implemented in Phase 6
+# Called from project workflows via workflow_call.
+# Performs two-phase Docker build: base image from batsman
+# (with GHA cache via docker-container driver), then project
+# image layered on top via plain docker build (sees the loaded
+# base image in the Docker daemon).
+
 name: Reusable Test Workflow
+
 on:
   workflow_call:
     inputs:
       project-name:
         type: string
         required: true
+        description: 'Project name for image tags and container naming'
+      os-matrix:
+        type: string
+        required: true
+        description: 'JSON array of OS targets, e.g. ["debian12","rocky9"]'
+      docker-run-flags:
+        type: string
+        required: false
+        default: ''
+        description: 'Extra docker run flags (e.g., --privileged)'
+      timeout:
+        type: number
+        required: false
+        default: 15
+        description: 'Job timeout in minutes'
+      dockerfile-dir:
+        type: string
+        required: false
+        default: 'tests'
+        description: 'Directory containing project Dockerfiles'
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: ${{ inputs.timeout }}
+
+    strategy:
+      matrix:
+        os: ${{ fromJSON(inputs.os-matrix) }}
+      fail-fast: false
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build base image (${{ matrix.os }})
+        uses: docker/build-push-action@v6
+        with:
+          context: ${{ inputs.dockerfile-dir }}/infra
+          file: ${{ inputs.dockerfile-dir }}/infra/dockerfiles/Dockerfile.${{ matrix.os }}
+          tags: ${{ inputs.project-name }}-base-${{ matrix.os }}
+          load: true
+          cache-from: type=gha,scope=base-${{ matrix.os }}
+          cache-to: type=gha,mode=max,scope=base-${{ matrix.os }}
+
+      - name: Build project image (${{ matrix.os }})
+        run: |
+          if [ "${{ matrix.os }}" = "debian12" ]; then
+            DOCKERFILE="${{ inputs.dockerfile-dir }}/Dockerfile"
+          else
+            DOCKERFILE="${{ inputs.dockerfile-dir }}/Dockerfile.${{ matrix.os }}"
+          fi
+          docker build \
+            --build-arg "BASE_IMAGE=${{ inputs.project-name }}-base-${{ matrix.os }}" \
+            -f "$DOCKERFILE" \
+            -t "${{ inputs.project-name }}-test-${{ matrix.os }}" \
+            .
+
+      - name: Run tests (${{ matrix.os }})
+        run: docker run --rm ${{ inputs.docker-run-flags }} ${{ inputs.project-name }}-test-${{ matrix.os }}
