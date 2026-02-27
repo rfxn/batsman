@@ -1,5 +1,11 @@
 # batsman — Shared BATS Test Infrastructure
 
+[![Version](https://img.shields.io/github/v/tag/rfxn/batsman?label=version&sort=semver)](https://github.com/rfxn/batsman/releases)
+[![License: GPL v2](https://img.shields.io/badge/license-GPLv2-blue.svg)](https://www.gnu.org/licenses/old-licenses/gpl-2.0.html)
+[![GitHub Issues](https://img.shields.io/github/issues/rfxn/batsman)](https://github.com/rfxn/batsman/issues)
+[![Shell](https://img.shields.io/badge/shell-bash-green.svg)](https://www.gnu.org/software/bash/)
+[![BATS](https://img.shields.io/badge/bats--core-1.11.0-orange.svg)](https://github.com/bats-core/bats-core)
+
 Shared BATS test infrastructure for R-fx Networks projects.
 Consumed as a git submodule at `tests/infra/` in each project.
 
