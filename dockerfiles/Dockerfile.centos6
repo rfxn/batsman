@@ -1,0 +1,22 @@
+# batsman — Base image: CentOS 6
+# Common utilities + BATS test framework
+# Copyright (C) 2002-2026 R-fx Networks <proj@rfxn.com>
+# GNU GPL v2 — see LICENSE
+#
+# CentOS 6 is EOL (Nov 2020) — vault repos required.
+# wget/curl may not support TLS 1.2+ for GitHub downloads.
+FROM centos:6
+
+# Point to vault mirrors (EOL)
+RUN sed -i 's|^mirrorlist=|#mirrorlist=|g' /etc/yum.repos.d/CentOS-*.repo && \
+    sed -i 's|^#baseurl=http://mirror.centos.org|baseurl=http://vault.centos.org|g' /etc/yum.repos.d/CentOS-*.repo
+
+RUN yum install -y \
+    bash coreutils findutils diffutils procps \
+    gawk sed grep gzip tar \
+    wget curl ca-certificates \
+    util-linux-ng hostname \
+    && yum clean all
+
+COPY scripts/install-bats.sh /tmp/install-bats.sh
+RUN TLS_FALLBACK=1 bash /tmp/install-bats.sh && rm -f /tmp/install-bats.sh

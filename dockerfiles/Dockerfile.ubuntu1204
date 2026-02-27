@@ -1,0 +1,21 @@
+# batsman — Base image: Ubuntu 12.04
+# Common utilities + BATS test framework
+# Copyright (C) 2002-2026 R-fx Networks <proj@rfxn.com>
+# GNU GPL v2 — see LICENSE
+#
+# Ubuntu 12.04 (Precise) is EOL — old-releases repos required.
+# wget/curl may not support TLS 1.2+ for GitHub downloads.
+FROM ubuntu:12.04
+
+# Point to old-releases mirrors (EOL)
+RUN sed -i 's|archive.ubuntu.com|old-releases.ubuntu.com|; s|security.ubuntu.com|old-releases.ubuntu.com|' /etc/apt/sources.list
+
+RUN apt-get update && apt-get install -y \
+    bash coreutils findutils diffutils procps \
+    gawk sed grep gzip tar \
+    wget curl ca-certificates \
+    util-linux hostname \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY scripts/install-bats.sh /tmp/install-bats.sh
+RUN TLS_FALLBACK=2 bash /tmp/install-bats.sh && rm -f /tmp/install-bats.sh

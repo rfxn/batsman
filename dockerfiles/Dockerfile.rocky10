@@ -1,0 +1,15 @@
+# batsman — Base image: Rocky Linux 10
+# Common utilities + BATS test framework
+# Copyright (C) 2002-2026 R-fx Networks <proj@rfxn.com>
+# GNU GPL v2 — see LICENSE
+FROM rockylinux:10
+
+RUN dnf install -y --allowerasing \
+    bash coreutils findutils diffutils procps-ng \
+    gawk sed grep gzip tar \
+    wget curl ca-certificates \
+    util-linux hostname \
+    && dnf clean all
+
+COPY scripts/install-bats.sh /tmp/install-bats.sh
+RUN bash /tmp/install-bats.sh && rm -f /tmp/install-bats.sh

@@ -1,0 +1,17 @@
+# batsman — Base image: Debian 12
+# Common utilities + BATS test framework
+# Copyright (C) 2002-2026 R-fx Networks <proj@rfxn.com>
+# GNU GPL v2 — see LICENSE
+FROM debian:12-slim
+
+ENV DEBIAN_FRONTEND=noninteractive
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    bash coreutils findutils diffutils procps \
+    gawk sed grep gzip tar \
+    wget curl ca-certificates \
+    util-linux hostname \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY scripts/install-bats.sh /tmp/install-bats.sh
+RUN bash /tmp/install-bats.sh && rm -f /tmp/install-bats.sh

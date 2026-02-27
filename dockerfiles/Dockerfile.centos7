@@ -1,0 +1,21 @@
+# batsman — Base image: CentOS 7
+# Common utilities + BATS test framework
+# Copyright (C) 2002-2026 R-fx Networks <proj@rfxn.com>
+# GNU GPL v2 — see LICENSE
+#
+# CentOS 7 is EOL (Jun 2024) — vault repos required.
+FROM centos:7
+
+# Point to vault mirrors (EOL)
+RUN sed -i 's|^mirrorlist=|#mirrorlist=|g' /etc/yum.repos.d/CentOS-*.repo && \
+    sed -i 's|^#baseurl=http://mirror.centos.org|baseurl=http://vault.centos.org|g' /etc/yum.repos.d/CentOS-*.repo
+
+RUN yum install -y \
+    bash coreutils findutils diffutils procps-ng \
+    gawk sed grep gzip tar \
+    wget curl ca-certificates \
+    util-linux hostname \
+    && yum clean all
+
+COPY scripts/install-bats.sh /tmp/install-bats.sh
+RUN bash /tmp/install-bats.sh && rm -f /tmp/install-bats.sh
