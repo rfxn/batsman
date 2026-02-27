@@ -9,11 +9,12 @@ https://github.com/rfxn/batsman
       tier-grouped, and cross-OS parallel targets via $(eval $(call))
 [New] .github/workflows/test.yml — reusable CI workflow with two-phase
       Docker build, GHA cache for base images, workflow_call interface
+[Fix] dockerfiles: Rocky 8/9 coreutils-single conflict with coreutils
+      on minimal images — omit coreutils from package list
 
 - 1.0.0 | Feb 26 2026:
 [New] Initial release
 [New] scripts/install-bats.sh — shared BATS installer with TLS fallback
-[New] dockerfiles/ — 9 base OS images (debian12, centos6/7, rocky8/9/10, ubuntu1204/2004/2404)
+[New] dockerfiles/ — 9 base OS images (debian12, centos6/7, rocky8/9/10,
+      ubuntu1204/2004/2404)
 [New] lib/run-tests-core.sh — parallel test orchestration engine
-[New] include/Makefile.tests — parameterized GNU Make include
-[New] .github/workflows/test.yml — reusable CI workflow via workflow_call

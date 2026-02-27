@@ -5,3 +5,5 @@
       tier-grouped, and cross-OS parallel targets via $(eval $(call))
 [New] .github/workflows/test.yml — reusable CI workflow with two-phase
       Docker build, GHA cache for base images, workflow_call interface
+[Fix] dockerfiles: Rocky 8/9 coreutils-single conflict with coreutils
+      on minimal images — omit coreutils from package list
