@@ -1,0 +1,12 @@
+# batsman — Reusable CI workflow
+# Copyright (C) 2002-2026 R-fx Networks <proj@rfxn.com>
+# GNU GPL v2 — see LICENSE
+#
+# Stub — implemented in Phase 6
+name: Reusable Test Workflow
+on:
+  workflow_call:
+    inputs:
+      project-name:
+        type: string
+        required: true

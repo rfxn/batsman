@@ -1,0 +1,7 @@
+# batsman — Makefile.tests
+# Parameterized GNU Make include for test targets
+# Copyright (C) 2002-2026 R-fx Networks <proj@rfxn.com>
+# GNU GPL v2 — see LICENSE
+#
+# Projects set variables then: include infra/include/Makefile.tests
+# Stub — implemented in Phase 5
