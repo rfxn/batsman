@@ -120,6 +120,7 @@ jobs:
 | `BATSMAN_DEFAULT_OS` | no | Default OS when --os omitted (default: debian12) |
 | `BATSMAN_CONTAINER_TEST_PATH` | yes | Test directory path inside container |
 | `BATSMAN_SUPPORTED_OS` | yes | Space-separated list of supported OS targets |
+| `BATSMAN_BASE_OS_MAP` | no | Variant→base mappings (e.g. `"yara-x=debian12"`) |
 
 ### Makefile.tests Variables
 

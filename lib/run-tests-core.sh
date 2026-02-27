@@ -18,6 +18,7 @@
 # Optional variables:
 #   BATSMAN_DOCKER_FLAGS       Extra docker run flags (e.g., "--privileged")
 #   BATSMAN_DEFAULT_OS         Default OS when --os omitted (default: debian12)
+#   BATSMAN_BASE_OS_MAP        Variant→base OS mappings (e.g., "yara-x=debian12")
 
 if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
     echo "Error: run-tests-core.sh must be sourced, not executed directly." >&2
@@ -122,8 +123,21 @@ batsman_parse_args() {
 # batsman_build — Two-phase Docker build (base from infra, project from tests/)
 # ---------------------------------------------------------------------------
 batsman_build() {
-    local base_dockerfile="$BATSMAN_INFRA_DIR/dockerfiles/Dockerfile.${_batsman_os}"
-    local base_tag="${BATSMAN_PROJECT}-base-${_batsman_os}"
+    # Allow projects to map variant names to base OS targets
+    # e.g., BATSMAN_BASE_OS_MAP="yara-x=debian12" means --os yara-x uses debian12 base
+    local base_os="$_batsman_os"
+    if [ -n "${BATSMAN_BASE_OS_MAP:-}" ]; then
+        local _map_entry
+        for _map_entry in $BATSMAN_BASE_OS_MAP; do
+            if [ "${_map_entry%%=*}" = "$_batsman_os" ]; then
+                base_os="${_map_entry#*=}"
+                break
+            fi
+        done
+    fi
+
+    local base_dockerfile="$BATSMAN_INFRA_DIR/dockerfiles/Dockerfile.${base_os}"
+    local base_tag="${BATSMAN_PROJECT}-base-${base_os}"
 
     # Phase 1: Build base image from batsman Dockerfiles
     if [ ! -f "$base_dockerfile" ]; then
