@@ -13,3 +13,6 @@
       to bats --filter-tags (comma-separated, ! to negate; requires BATS 1.8.0+)
 [New] CI concurrency groups — rapid pushes to the same branch auto-cancel
       superseded runs per-OS; optional concurrency-group input for custom prefix
+[New] --report-dir DIR CLI option and BATSMAN_REPORT_DIR env var for JUnit XML
+      report generation; sequential/direct produce DIR/report.xml, parallel
+      produces DIR/group-N/report.xml per group (volume-mounted into containers)

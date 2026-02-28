@@ -20,6 +20,7 @@
 #   BATSMAN_DEFAULT_OS         Default OS when --os omitted (default: debian12)
 #   BATSMAN_BASE_OS_MAP        Variant→base OS mappings (e.g., "yara-x=debian12")
 #   BATSMAN_TEST_TIMEOUT       Per-test timeout in seconds (passed as BATS_TEST_TIMEOUT)
+#   BATSMAN_REPORT_DIR         Host directory for JUnit XML reports (passed as --report-dir)
 
 if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
     echo "Error: run-tests-core.sh must be sourced, not executed directly." >&2
@@ -43,6 +44,7 @@ _batsman_explicit_files=0
 _batsman_image_tag=""
 _batsman_test_timeout=""
 _batsman_abort=0
+_batsman_report_dir=""
 
 # ---------------------------------------------------------------------------
 # batsman_usage — Print help text parameterized by project vars
@@ -61,12 +63,15 @@ Options:
   --formatter FMT   BATS output formatter: tap (default), pretty
   --timeout SECS    Per-test timeout in seconds (passed as BATS_TEST_TIMEOUT)
   --abort           Stop on first test failure (requires BATS 1.13.0+)
+  --report-dir DIR  Write JUnit XML reports to DIR on the host
   --version         Show batsman version and exit
   --help            Show this help
 
 Any remaining arguments are passed directly to bats.
 Specific test file paths bypass parallel mode.
 In parallel mode, --abort applies per-group (each container aborts independently).
+JUnit reports: sequential/direct produce DIR/report.xml; parallel produces
+DIR/group-N/report.xml per group.
 
 Supported OS targets:
   ${BATSMAN_SUPPORTED_OS:-debian12}
@@ -86,6 +91,7 @@ batsman_parse_args() {
     _batsman_explicit_files=0
     _batsman_test_timeout=""
     _batsman_abort=0
+    _batsman_report_dir=""
 
     while [ $# -gt 0 ]; do
         case "$1" in
@@ -120,6 +126,10 @@ batsman_parse_args() {
             --abort)
                 _batsman_abort=1
                 ;;
+            --report-dir)
+                shift
+                _batsman_report_dir="$1"
+                ;;
             --version)
                 echo "batsman $BATSMAN_VERSION"
                 exit 0
@@ -153,6 +163,11 @@ batsman_parse_args() {
     # Resolve test timeout: CLI --timeout takes precedence over env var
     if [ -z "$_batsman_test_timeout" ] && [ -n "${BATSMAN_TEST_TIMEOUT:-}" ]; then
         _batsman_test_timeout="$BATSMAN_TEST_TIMEOUT"
+    fi
+
+    # Resolve report dir: CLI --report-dir takes precedence over env var
+    if [ -z "$_batsman_report_dir" ] && [ -n "${BATSMAN_REPORT_DIR:-}" ]; then
+        _batsman_report_dir="$BATSMAN_REPORT_DIR"
     fi
 
     # Prepend --abort to bats args if requested
@@ -215,10 +230,18 @@ batsman_run_direct() {
     local timeout_env=""
     [ -n "$_batsman_test_timeout" ] && timeout_env="-e BATS_TEST_TIMEOUT=$_batsman_test_timeout"
 
+    local report_mount="" report_args=""
+    if [ -n "$_batsman_report_dir" ]; then
+        mkdir -p "$_batsman_report_dir"
+        report_mount="-v $(cd "$_batsman_report_dir" && pwd):/reports"
+        report_args="--report-formatter junit --output /reports"
+    fi
+
     echo "=== Running tests: ${_batsman_os} ==="
     # shellcheck disable=SC2086
-    docker run --rm ${BATSMAN_DOCKER_FLAGS:-} $timeout_env "$_batsman_image_tag" \
-        bats --formatter "$_batsman_formatter" "${_batsman_bats_args[@]}"
+    docker run --rm ${BATSMAN_DOCKER_FLAGS:-} $timeout_env $report_mount \
+        "$_batsman_image_tag" \
+        bats --formatter "$_batsman_formatter" $report_args "${_batsman_bats_args[@]}"
 }
 
 # ---------------------------------------------------------------------------
@@ -228,17 +251,27 @@ batsman_run_sequential() {
     local timeout_env=""
     [ -n "$_batsman_test_timeout" ] && timeout_env="-e BATS_TEST_TIMEOUT=$_batsman_test_timeout"
 
+    local report_mount="" report_args=""
+    if [ -n "$_batsman_report_dir" ]; then
+        mkdir -p "$_batsman_report_dir"
+        report_mount="-v $(cd "$_batsman_report_dir" && pwd):/reports"
+        report_args="--report-formatter junit --output /reports"
+    fi
+
     echo "=== Running tests: ${_batsman_os} ==="
     if [ ${#_batsman_bats_args[@]} -gt 0 ]; then
         # bats_args may contain --filter; append test path
         # shellcheck disable=SC2086
-        docker run --rm ${BATSMAN_DOCKER_FLAGS:-} $timeout_env "$_batsman_image_tag" \
-            bats --formatter "$_batsman_formatter" \
+        docker run --rm ${BATSMAN_DOCKER_FLAGS:-} $timeout_env $report_mount \
+            "$_batsman_image_tag" \
+            bats --formatter "$_batsman_formatter" $report_args \
             "${_batsman_bats_args[@]}" "$BATSMAN_CONTAINER_TEST_PATH"
     else
         # shellcheck disable=SC2086
-        docker run --rm ${BATSMAN_DOCKER_FLAGS:-} $timeout_env "$_batsman_image_tag" \
-            bats --formatter "$_batsman_formatter" "$BATSMAN_CONTAINER_TEST_PATH"
+        docker run --rm ${BATSMAN_DOCKER_FLAGS:-} $timeout_env $report_mount \
+            "$_batsman_image_tag" \
+            bats --formatter "$_batsman_formatter" $report_args \
+            "$BATSMAN_CONTAINER_TEST_PATH"
     fi
 }
 
@@ -307,17 +340,31 @@ batsman_run_parallel() {
     local timeout_env=""
     [ -n "$_batsman_test_timeout" ] && timeout_env="-e BATS_TEST_TIMEOUT=$_batsman_test_timeout"
 
+    # Per-group report volume mounts (parallel produces group-N subdirectories)
+    local report_mount_base="" report_args=""
+    if [ -n "$_batsman_report_dir" ]; then
+        mkdir -p "$_batsman_report_dir"
+        report_mount_base="$(cd "$_batsman_report_dir" && pwd)"
+        report_args="--report-formatter junit --output /reports"
+    fi
+
     echo "=== Running tests: ${_batsman_os} (parallel: ${num_groups} groups, ${num_files} files) ==="
     local start_time=$SECONDS
 
     # Launch named containers in parallel
     local -a pids
     for i in $(seq 0 $(( num_groups - 1 ))); do
+        local report_mount=""
+        if [ -n "$report_mount_base" ]; then
+            mkdir -p "${report_mount_base}/group-${i}"
+            report_mount="-v ${report_mount_base}/group-${i}:/reports"
+        fi
         # shellcheck disable=SC2086
-        docker run --rm ${BATSMAN_DOCKER_FLAGS:-} $timeout_env \
+        docker run --rm ${BATSMAN_DOCKER_FLAGS:-} $timeout_env $report_mount \
             --name "${BATSMAN_PROJECT}-${_batsman_os}-${run_id}-g${i}" \
             "$_batsman_image_tag" \
-            bats --formatter tap "${_batsman_bats_args[@]}" ${group_files[$i]} \
+            bats --formatter tap $report_args \
+            "${_batsman_bats_args[@]}" ${group_files[$i]} \
             > "$tmpdir_par/group-$i.tap" 2>&1 &
         pids+=($!)
     done

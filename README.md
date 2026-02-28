@@ -294,6 +294,7 @@ jobs:
 | `BATSMAN_SUPPORTED_OS` | yes | Space-separated list of supported OS targets |
 | `BATSMAN_BASE_OS_MAP` | no | Variant-to-base mappings (e.g. `"yara-x=debian12"`) |
 | `BATSMAN_TEST_TIMEOUT` | no | Per-test timeout in seconds (passed as `BATS_TEST_TIMEOUT`) |
+| `BATSMAN_REPORT_DIR` | no | Host directory for JUnit XML reports (passed as `--report-dir`) |
 
 ### Makefile.tests Variables
 
@@ -368,6 +369,9 @@ jobs:
 
 # Stop on first failure
 ./tests/run-tests.sh --abort --parallel
+
+# Generate JUnit XML reports
+./tests/run-tests.sh --report-dir /tmp/reports --parallel
 
 # Show batsman version
 ./tests/run-tests.sh --version

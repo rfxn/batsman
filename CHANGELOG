@@ -17,6 +17,9 @@ https://github.com/rfxn/batsman
       to bats --filter-tags (comma-separated, ! to negate; requires BATS 1.8.0+)
 [New] CI concurrency groups — rapid pushes to the same branch auto-cancel
       superseded runs per-OS; optional concurrency-group input for custom prefix
+[New] --report-dir DIR CLI option and BATSMAN_REPORT_DIR env var for JUnit XML
+      report generation; sequential/direct produce DIR/report.xml, parallel
+      produces DIR/group-N/report.xml per group (volume-mounted into containers)
 
 - 1.0.1 | Feb 27 2026:
 [Fix] dockerfiles: Rocky 10 base image name rockylinux:10 → rockylinux/rockylinux:10
