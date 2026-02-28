@@ -354,6 +354,12 @@ jobs:
 # Per-test timeout (30 seconds)
 ./tests/run-tests.sh --timeout 30 --parallel
 
+# Filter tests by tag
+./tests/run-tests.sh --filter-tags "smoke" --parallel
+
+# Exclude slow-tagged tests
+./tests/run-tests.sh --filter-tags '!slow' --parallel
+
 # Stop on first failure
 ./tests/run-tests.sh --abort --parallel
 

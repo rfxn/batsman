@@ -9,3 +9,5 @@
       timeout protection (passed as BATS_TEST_TIMEOUT into containers)
 [New] --abort CLI option for fail-fast — stops on first test failure; in
       parallel mode applies per-group (each container aborts independently)
+[New] --filter-tags TAG CLI option for tag-based test selection — passthrough
+      to bats --filter-tags (comma-separated, ! to negate; requires BATS 1.8.0+)
