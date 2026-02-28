@@ -477,9 +477,9 @@ uses: rfxn/batsman/.github/workflows/test.yml@v1.0.1
 | Project | Docker Flags | Container Test Path | OS Targets | Notable | Repository |
 |---------|-------------|--------------------|-----------:|---------|------------|
 | APF | `--privileged` | `/opt/tests` | 9 | iptables/netfilter tests | [rfxn/apf](https://github.com/rfxn/apf) |
-| BFD | (none) | `/opt/bfd/tests` | 9 | Non-standard test path | [rfxn/bfd](https://github.com/rfxn/bfd) |
+| BFD | (none) | `/opt/tests` | 9 | | [rfxn/bfd](https://github.com/rfxn/bfd) |
 | LMD | (none) | `/opt/tests` | 9 + yara-x | BATSMAN_BASE_OS_MAP for yara-x variant | [rfxn/lmd](https://github.com/rfxn/lmd) |
-| tlog_lib | (none) | `/opt/tlog_lib/tests` | 9 | Zero project packages needed | [rfxn/tlog_lib](https://github.com/rfxn/tlog_lib) |
+| tlog_lib | (none) | `/opt/tests` | 9 | Zero project packages needed | [rfxn/tlog_lib](https://github.com/rfxn/tlog_lib) |
 
 ## License
 
