@@ -6,6 +6,9 @@ https://github.com/rfxn/batsman
 [New] BATSMAN_VERSION variable in run-tests-core.sh — consumer projects and
       CI can now query the batsman version programmatically
 [New] --version CLI option prints batsman version and exits
+[Change] BATS version bump 1.11.0 → 1.13.0 — unlocks --abort (fail-fast),
+      --negative-filter, BATS_TEST_TIMEOUT bug fixes, JUnit XML fixes;
+      Bash floor remains 3.2+ (CentOS 6 compatible)
 
 - 1.0.1 | Feb 27 2026:
 [Fix] dockerfiles: Rocky 10 base image name rockylinux:10 → rockylinux/rockylinux:10

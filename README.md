@@ -4,7 +4,7 @@
 [![License: GPL v2](https://img.shields.io/badge/license-GPLv2-blue.svg)](https://www.gnu.org/licenses/old-licenses/gpl-2.0.html)
 [![GitHub Issues](https://img.shields.io/github/issues/rfxn/batsman)](https://github.com/rfxn/batsman/issues)
 [![Shell](https://img.shields.io/badge/shell-bash-green.svg)](https://www.gnu.org/software/bash/)
-[![BATS](https://img.shields.io/badge/bats--core-1.11.0-orange.svg)](https://github.com/bats-core/bats-core)
+[![BATS](https://img.shields.io/badge/bats--core-1.13.0-orange.svg)](https://github.com/bats-core/bats-core)
 
 Shared BATS test infrastructure for R-fx Networks projects.
 Consumed as a git submodule at `tests/infra/` in each project.
@@ -270,7 +270,7 @@ jobs:
 
 | Variable | Default | Purpose |
 |----------|---------|---------|
-| `BATS_VERSION` | `1.11.0` | bats-core version |
+| `BATS_VERSION` | `1.13.0` | bats-core version |
 | `BATS_SUPPORT_VERSION` | `0.3.0` | bats-support version |
 | `BATS_ASSERT_VERSION` | `2.1.0` | bats-assert version |
 | `TLS_FALLBACK` | `0` | TLS mode: 0=standard wget, 1=wget --no-check-certificate with curl fallback, 2=curl primary with wget fallback |
@@ -349,6 +349,9 @@ jobs:
 
 # Pretty output (sequential only)
 ./tests/run-tests.sh --formatter pretty
+
+# Show batsman version
+./tests/run-tests.sh --version
 ```
 
 ## Using batsman in Your Own Project
