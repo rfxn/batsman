@@ -20,3 +20,5 @@
       job summary with test/failure/error/skipped/duration table
 [New] CI workflow: test-path input (default /opt/tests) for explicit bats
       invocation; reports boolean input (default true) for opt-out
+[New] Makefile: test-report target generates JUnit XML reports in reports/
+      directory via --report-dir

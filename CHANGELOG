@@ -24,6 +24,8 @@ https://github.com/rfxn/batsman
       job summary with test/failure/error/skipped/duration table
 [New] CI workflow: test-path input (default /opt/tests) for explicit bats
       invocation; reports boolean input (default true) for opt-out
+[New] Makefile: test-report target generates JUnit XML reports in reports/
+      directory via --report-dir
 
 - 1.0.1 | Feb 27 2026:
 [Fix] dockerfiles: Rocky 10 base image name rockylinux:10 → rockylinux/rockylinux:10

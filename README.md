@@ -336,6 +336,7 @@ jobs:
 | `test` | Default OS, parallel (default goal) |
 | `test-serial` | Default OS, sequential (single container) |
 | `test-verbose` | Default OS, pretty formatter (sequential) |
+| `test-report` | Default OS, parallel, JUnit XML in `reports/` |
 | `test-<os>` | Specific OS, parallel |
 | `test-modern` | Modern tier, sequential across OS |
 | `test-legacy` | Legacy tier, sequential across OS |

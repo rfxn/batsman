@@ -20,7 +20,7 @@ PARALLEL_JOBS ?= $(shell echo $$(( $$(nproc) * 2 )) | awk '{ print ($$1 < 1) ? 1
 # ---------------------------------------------------------------------------
 # Core targets (defined first so 'test' is the default goal)
 # ---------------------------------------------------------------------------
-.PHONY: test test-serial test-verbose
+.PHONY: test test-serial test-verbose test-report
 
 test:
 	$(BATSMAN_RUN_TESTS) --parallel
@@ -30,6 +30,11 @@ test-serial:
 
 test-verbose:
 	$(BATSMAN_RUN_TESTS) --formatter pretty
+
+test-report:
+	mkdir -p reports
+	$(BATSMAN_RUN_TESTS) --parallel --report-dir reports
+	@echo "Reports: reports/"
 
 # ---------------------------------------------------------------------------
 # Per-OS target generation: test-<os> for each OS in BATSMAN_OS_ALL
