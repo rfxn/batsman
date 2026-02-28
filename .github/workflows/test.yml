@@ -41,6 +41,16 @@ on:
         required: false
         default: ''
         description: 'Concurrency group prefix (empty = default per-project grouping)'
+      test-path:
+        type: string
+        required: false
+        default: '/opt/tests'
+        description: 'Test directory path inside container'
+      reports:
+        type: boolean
+        required: false
+        default: true
+        description: 'Generate JUnit XML reports and upload as artifacts'
 
 jobs:
   test:
@@ -89,4 +99,50 @@ jobs:
             .
 
       - name: Run tests (${{ matrix.os }})
-        run: docker run --rm ${{ inputs.docker-run-flags }} ${{ inputs.project-name }}-test-${{ matrix.os }}
+        run: |
+          REPORT_FLAGS=""
+          REPORT_MOUNT=""
+          if [ "${{ inputs.reports }}" = "true" ]; then
+            mkdir -p "${{ runner.temp }}/reports"
+            REPORT_FLAGS="--report-formatter junit --output /reports"
+            REPORT_MOUNT="-v ${{ runner.temp }}/reports:/reports"
+          fi
+          docker run --rm \
+            ${{ inputs.docker-run-flags }} \
+            $REPORT_MOUNT \
+            ${{ inputs.project-name }}-test-${{ matrix.os }} \
+            bats --formatter tap \
+            $REPORT_FLAGS \
+            ${{ inputs.test-path }}
+
+      - name: Upload test reports
+        if: inputs.reports && always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-reports-${{ inputs.project-name }}-${{ matrix.os }}
+          path: ${{ runner.temp }}/reports/
+          retention-days: 14
+          if-no-files-found: ignore
+
+      - name: Test summary
+        if: inputs.reports && always()
+        run: |
+          REPORT_FILE="${{ runner.temp }}/reports/report.xml"
+          if [ ! -f "$REPORT_FILE" ]; then
+            echo "No JUnit report found — skipping summary" >&2
+            exit 0
+          fi
+          tests=$(grep -o 'tests="[0-9]*"' "$REPORT_FILE" | head -1 | grep -o '[0-9]*')
+          failures=$(grep -o 'failures="[0-9]*"' "$REPORT_FILE" | head -1 | grep -o '[0-9]*')
+          errors=$(grep -o 'errors="[0-9]*"' "$REPORT_FILE" | head -1 | grep -o '[0-9]*')
+          skipped=$(grep -o 'skipped="[0-9]*"' "$REPORT_FILE" | head -1 | grep -o '[0-9]*')
+          time=$(grep -o 'time="[0-9.]*"' "$REPORT_FILE" | head -1 | grep -o '[0-9.]*')
+          echo "## Test Results: ${{ matrix.os }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Metric | Count |" >> "$GITHUB_STEP_SUMMARY"
+          echo "|--------|-------|" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Tests | ${tests:-0} |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Failures | ${failures:-0} |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Errors | ${errors:-0} |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Skipped | ${skipped:-0} |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Duration | ${time:-?}s |" >> "$GITHUB_STEP_SUMMARY"

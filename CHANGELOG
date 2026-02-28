@@ -20,6 +20,10 @@ https://github.com/rfxn/batsman
 [New] --report-dir DIR CLI option and BATSMAN_REPORT_DIR env var for JUnit XML
       report generation; sequential/direct produce DIR/report.xml, parallel
       produces DIR/group-N/report.xml per group (volume-mounted into containers)
+[New] CI workflow: JUnit XML artifact upload (14-day retention) and GitHub
+      job summary with test/failure/error/skipped/duration table
+[New] CI workflow: test-path input (default /opt/tests) for explicit bats
+      invocation; reports boolean input (default true) for opt-out
 
 - 1.0.1 | Feb 27 2026:
 [Fix] dockerfiles: Rocky 10 base image name rockylinux:10 → rockylinux/rockylinux:10

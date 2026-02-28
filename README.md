@@ -112,6 +112,11 @@ The hybrid approach (docker-container for cached base build, plain docker for
 project build) works around limitations with `type=gha` cache on older Docker
 versions.
 
+**JUnit reporting:** When `reports: true` (default), each OS job generates a
+JUnit XML report via `--report-formatter junit`, uploads it as a GitHub
+artifact (14-day retention), and writes a test summary table to the job
+summary page.
+
 **Concurrency control:** Each OS job runs in a concurrency group keyed by
 `<project-name>-<git-ref>-<os>`. Rapid pushes to the same branch auto-cancel
 superseded runs per-OS. Callers can override the prefix with the
@@ -262,11 +267,13 @@ on:
     branches: [master]
 jobs:
   test:
-    uses: rfxn/batsman/.github/workflows/test.yml@v1.0.1
+    uses: rfxn/batsman/.github/workflows/test.yml@v1.0.2
     with:
       project-name: myproject
       os-matrix: '["debian12","centos7","rocky8","rocky9","ubuntu2004","ubuntu2404"]'
       docker-run-flags: '--privileged'    # omit if not needed
+      # test-path: '/opt/custom/tests'    # override if non-standard (default: /opt/tests)
+      # reports: false                    # disable JUnit reports (default: true)
 ```
 
 ## Configuration Reference
@@ -317,6 +324,8 @@ jobs:
 | `timeout` | no | `15` | Job timeout in minutes |
 | `dockerfile-dir` | no | `tests` | Directory containing project Dockerfiles |
 | `concurrency-group` | no | `""` | Concurrency group prefix (empty = default per-project grouping) |
+| `test-path` | no | `/opt/tests` | Test directory path inside container |
+| `reports` | no | `true` | Generate JUnit XML reports and upload as artifacts |
 
 ## Common Use Cases
 
