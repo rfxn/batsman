@@ -36,11 +36,20 @@ on:
         required: false
         default: 'tests'
         description: 'Directory containing project Dockerfiles'
+      concurrency-group:
+        type: string
+        required: false
+        default: ''
+        description: 'Concurrency group prefix (empty = default per-project grouping)'
 
 jobs:
   test:
     runs-on: ubuntu-latest
     timeout-minutes: ${{ inputs.timeout }}
+
+    concurrency:
+      group: ${{ inputs.concurrency-group != '' && format('{0}-{1}', inputs.concurrency-group, matrix.os) || format('{0}-{1}-{2}', inputs.project-name, github.ref, matrix.os) }}
+      cancel-in-progress: true
 
     strategy:
       matrix:

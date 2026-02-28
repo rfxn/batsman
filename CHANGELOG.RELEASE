@@ -11,3 +11,5 @@
       parallel mode applies per-group (each container aborts independently)
 [New] --filter-tags TAG CLI option for tag-based test selection — passthrough
       to bats --filter-tags (comma-separated, ! to negate; requires BATS 1.8.0+)
+[New] CI concurrency groups — rapid pushes to the same branch auto-cancel
+      superseded runs per-OS; optional concurrency-group input for custom prefix

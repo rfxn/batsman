@@ -112,6 +112,11 @@ The hybrid approach (docker-container for cached base build, plain docker for
 project build) works around limitations with `type=gha` cache on older Docker
 versions.
 
+**Concurrency control:** Each OS job runs in a concurrency group keyed by
+`<project-name>-<git-ref>-<os>`. Rapid pushes to the same branch auto-cancel
+superseded runs per-OS. Callers can override the prefix with the
+`concurrency-group` input.
+
 ## Supported OS Targets
 
 batsman provides 9 base OS images spanning three tiers plus an extra tier:
@@ -310,6 +315,7 @@ jobs:
 | `docker-run-flags` | no | `""` | Extra docker run flags |
 | `timeout` | no | `15` | Job timeout in minutes |
 | `dockerfile-dir` | no | `tests` | Directory containing project Dockerfiles |
+| `concurrency-group` | no | `""` | Concurrency group prefix (empty = default per-project grouping) |
 
 ## Common Use Cases
 
