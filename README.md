@@ -288,6 +288,7 @@ jobs:
 | `BATSMAN_CONTAINER_TEST_PATH` | yes | Test directory path inside container |
 | `BATSMAN_SUPPORTED_OS` | yes | Space-separated list of supported OS targets |
 | `BATSMAN_BASE_OS_MAP` | no | Variant-to-base mappings (e.g. `"yara-x=debian12"`) |
+| `BATSMAN_TEST_TIMEOUT` | no | Per-test timeout in seconds (passed as `BATS_TEST_TIMEOUT`) |
 
 ### Makefile.tests Variables
 
@@ -349,6 +350,12 @@ jobs:
 
 # Pretty output (sequential only)
 ./tests/run-tests.sh --formatter pretty
+
+# Per-test timeout (30 seconds)
+./tests/run-tests.sh --timeout 30 --parallel
+
+# Stop on first failure
+./tests/run-tests.sh --abort --parallel
 
 # Show batsman version
 ./tests/run-tests.sh --version

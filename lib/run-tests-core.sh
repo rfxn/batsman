@@ -19,6 +19,7 @@
 #   BATSMAN_DOCKER_FLAGS       Extra docker run flags (e.g., "--privileged")
 #   BATSMAN_DEFAULT_OS         Default OS when --os omitted (default: debian12)
 #   BATSMAN_BASE_OS_MAP        Variant→base OS mappings (e.g., "yara-x=debian12")
+#   BATSMAN_TEST_TIMEOUT       Per-test timeout in seconds (passed as BATS_TEST_TIMEOUT)
 
 if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
     echo "Error: run-tests-core.sh must be sourced, not executed directly." >&2
@@ -40,6 +41,8 @@ _batsman_formatter="tap"
 _batsman_bats_args=()
 _batsman_explicit_files=0
 _batsman_image_tag=""
+_batsman_test_timeout=""
+_batsman_abort=0
 
 # ---------------------------------------------------------------------------
 # batsman_usage — Print help text parameterized by project vars
@@ -48,18 +51,21 @@ batsman_usage() {
     cat <<EOF
 batsman $BATSMAN_VERSION — test orchestration engine
 
-Usage: $0 [--os OS] [--parallel [N]] [--filter PATTERN] [--formatter FMT] [--help] [--version] [BATS_ARGS...]
+Usage: $0 [OPTIONS] [BATS_ARGS...]
 
 Options:
   --os OS           Target OS (default: ${BATSMAN_DEFAULT_OS:-debian12})
   --parallel [N]    Run test files in N parallel containers (default: nproc*2)
   --filter PATTERN  Filter tests by name (passed to bats --filter)
   --formatter FMT   BATS output formatter: tap (default), pretty
+  --timeout SECS    Per-test timeout in seconds (passed as BATS_TEST_TIMEOUT)
+  --abort           Stop on first test failure (requires BATS 1.13.0+)
   --version         Show batsman version and exit
   --help            Show this help
 
 Any remaining arguments are passed directly to bats.
 Specific test file paths bypass parallel mode.
+In parallel mode, --abort applies per-group (each container aborts independently).
 
 Supported OS targets:
   ${BATSMAN_SUPPORTED_OS:-debian12}
@@ -77,6 +83,8 @@ batsman_parse_args() {
     _batsman_formatter="tap"
     _batsman_bats_args=()
     _batsman_explicit_files=0
+    _batsman_test_timeout=""
+    _batsman_abort=0
 
     while [ $# -gt 0 ]; do
         case "$1" in
@@ -99,6 +107,13 @@ batsman_parse_args() {
             --formatter)
                 shift
                 _batsman_formatter="$1"
+                ;;
+            --timeout)
+                shift
+                _batsman_test_timeout="$1"
+                ;;
+            --abort)
+                _batsman_abort=1
                 ;;
             --version)
                 echo "batsman $BATSMAN_VERSION"
@@ -128,6 +143,16 @@ batsman_parse_args() {
         echo "Unsupported OS: $_batsman_os" >&2
         echo "Supported: $BATSMAN_SUPPORTED_OS" >&2
         return 1
+    fi
+
+    # Resolve test timeout: CLI --timeout takes precedence over env var
+    if [ -z "$_batsman_test_timeout" ] && [ -n "${BATSMAN_TEST_TIMEOUT:-}" ]; then
+        _batsman_test_timeout="$BATSMAN_TEST_TIMEOUT"
+    fi
+
+    # Prepend --abort to bats args if requested
+    if [ "$_batsman_abort" -eq 1 ]; then
+        _batsman_bats_args=("--abort" "${_batsman_bats_args[@]}")
     fi
 }
 
@@ -182,9 +207,12 @@ batsman_build() {
 # batsman_run_direct — Run explicit test file paths (no parallel)
 # ---------------------------------------------------------------------------
 batsman_run_direct() {
+    local timeout_env=""
+    [ -n "$_batsman_test_timeout" ] && timeout_env="-e BATS_TEST_TIMEOUT=$_batsman_test_timeout"
+
     echo "=== Running tests: ${_batsman_os} ==="
     # shellcheck disable=SC2086
-    docker run --rm ${BATSMAN_DOCKER_FLAGS:-} "$_batsman_image_tag" \
+    docker run --rm ${BATSMAN_DOCKER_FLAGS:-} $timeout_env "$_batsman_image_tag" \
         bats --formatter "$_batsman_formatter" "${_batsman_bats_args[@]}"
 }
 
@@ -192,16 +220,19 @@ batsman_run_direct() {
 # batsman_run_sequential — Single container, all tests
 # ---------------------------------------------------------------------------
 batsman_run_sequential() {
+    local timeout_env=""
+    [ -n "$_batsman_test_timeout" ] && timeout_env="-e BATS_TEST_TIMEOUT=$_batsman_test_timeout"
+
     echo "=== Running tests: ${_batsman_os} ==="
     if [ ${#_batsman_bats_args[@]} -gt 0 ]; then
         # bats_args may contain --filter; append test path
         # shellcheck disable=SC2086
-        docker run --rm ${BATSMAN_DOCKER_FLAGS:-} "$_batsman_image_tag" \
+        docker run --rm ${BATSMAN_DOCKER_FLAGS:-} $timeout_env "$_batsman_image_tag" \
             bats --formatter "$_batsman_formatter" \
             "${_batsman_bats_args[@]}" "$BATSMAN_CONTAINER_TEST_PATH"
     else
         # shellcheck disable=SC2086
-        docker run --rm ${BATSMAN_DOCKER_FLAGS:-} "$_batsman_image_tag" \
+        docker run --rm ${BATSMAN_DOCKER_FLAGS:-} $timeout_env "$_batsman_image_tag" \
             bats --formatter "$_batsman_formatter" "$BATSMAN_CONTAINER_TEST_PATH"
     fi
 }
@@ -268,6 +299,9 @@ batsman_run_parallel() {
     }
     trap _batsman_cleanup EXIT INT TERM
 
+    local timeout_env=""
+    [ -n "$_batsman_test_timeout" ] && timeout_env="-e BATS_TEST_TIMEOUT=$_batsman_test_timeout"
+
     echo "=== Running tests: ${_batsman_os} (parallel: ${num_groups} groups, ${num_files} files) ==="
     local start_time=$SECONDS
 
@@ -275,7 +309,7 @@ batsman_run_parallel() {
     local -a pids
     for i in $(seq 0 $(( num_groups - 1 ))); do
         # shellcheck disable=SC2086
-        docker run --rm ${BATSMAN_DOCKER_FLAGS:-} \
+        docker run --rm ${BATSMAN_DOCKER_FLAGS:-} $timeout_env \
             --name "${BATSMAN_PROJECT}-${_batsman_os}-${run_id}-g${i}" \
             "$_batsman_image_tag" \
             bats --formatter tap "${_batsman_bats_args[@]}" ${group_files[$i]} \

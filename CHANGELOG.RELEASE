@@ -5,3 +5,5 @@
 [Change] BATS version bump 1.11.0 → 1.13.0 — unlocks --abort (fail-fast),
       --negative-filter, BATS_TEST_TIMEOUT bug fixes, JUnit XML fixes;
       Bash floor remains 3.2+ (CentOS 6 compatible)
+[New] --timeout SECS CLI option and BATSMAN_TEST_TIMEOUT env var for per-test
+      timeout protection (passed as BATS_TEST_TIMEOUT into containers)
