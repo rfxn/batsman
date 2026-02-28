@@ -26,6 +26,11 @@ if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
 fi
 
 # ---------------------------------------------------------------------------
+# Version
+# ---------------------------------------------------------------------------
+BATSMAN_VERSION="1.0.2"
+
+# ---------------------------------------------------------------------------
 # Internal state (set by batsman_parse_args)
 # ---------------------------------------------------------------------------
 _batsman_os=""
@@ -41,13 +46,16 @@ _batsman_image_tag=""
 # ---------------------------------------------------------------------------
 batsman_usage() {
     cat <<EOF
-Usage: $0 [--os OS] [--parallel [N]] [--filter PATTERN] [--formatter FMT] [--help] [BATS_ARGS...]
+batsman $BATSMAN_VERSION — test orchestration engine
+
+Usage: $0 [--os OS] [--parallel [N]] [--filter PATTERN] [--formatter FMT] [--help] [--version] [BATS_ARGS...]
 
 Options:
   --os OS           Target OS (default: ${BATSMAN_DEFAULT_OS:-debian12})
   --parallel [N]    Run test files in N parallel containers (default: nproc*2)
   --filter PATTERN  Filter tests by name (passed to bats --filter)
   --formatter FMT   BATS output formatter: tap (default), pretty
+  --version         Show batsman version and exit
   --help            Show this help
 
 Any remaining arguments are passed directly to bats.
@@ -91,6 +99,10 @@ batsman_parse_args() {
             --formatter)
                 shift
                 _batsman_formatter="$1"
+                ;;
+            --version)
+                echo "batsman $BATSMAN_VERSION"
+                exit 0
                 ;;
             --help|-h)
                 batsman_usage 0

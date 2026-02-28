@@ -1,11 +1,4 @@
-- 1.0.1 | Feb 27 2026:
-[Fix] dockerfiles: Rocky 10 base image name rockylinux:10 → rockylinux/rockylinux:10
-      (not published to Docker Hub library, only to rockylinux org namespace)
-[New] BATSMAN_BASE_OS_MAP: variant-to-base OS mapping for project-specific
-      non-OS targets (e.g., yara-x → debian12 base)
-[New] include/Makefile.tests — parameterized GNU Make include with per-OS,
-      tier-grouped, and cross-OS parallel targets via $(eval $(call))
-[New] .github/workflows/test.yml — reusable CI workflow with two-phase
-      Docker build, GHA cache for base images, workflow_call interface
-[Fix] dockerfiles: Rocky 8/9 coreutils-single conflict with coreutils
-      on minimal images — omit coreutils from package list
+- 1.0.2 | Feb 28 2026:
+[New] BATSMAN_VERSION variable in run-tests-core.sh — consumer projects and
+      CI can now query the batsman version programmatically
+[New] --version CLI option prints batsman version and exits

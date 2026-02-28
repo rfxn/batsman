@@ -2,6 +2,11 @@ batsman — Shared BATS Test Infrastructure
 Copyright (C) 2002-2026 R-fx Networks <proj@rfxn.com>
 https://github.com/rfxn/batsman
 
+- 1.0.2 | Feb 28 2026:
+[New] BATSMAN_VERSION variable in run-tests-core.sh — consumer projects and
+      CI can now query the batsman version programmatically
+[New] --version CLI option prints batsman version and exits
+
 - 1.0.1 | Feb 27 2026:
 [Fix] dockerfiles: Rocky 10 base image name rockylinux:10 → rockylinux/rockylinux:10
       (not published to Docker Hub library, only to rockylinux org namespace)
