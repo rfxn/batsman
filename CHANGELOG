@@ -11,6 +11,8 @@ https://github.com/rfxn/batsman
       Bash floor remains 3.2+ (CentOS 6 compatible)
 [New] --timeout SECS CLI option and BATSMAN_TEST_TIMEOUT env var for per-test
       timeout protection (passed as BATS_TEST_TIMEOUT into containers)
+[New] --abort CLI option for fail-fast — stops on first test failure; in
+      parallel mode applies per-group (each container aborts independently)
 
 - 1.0.1 | Feb 27 2026:
 [Fix] dockerfiles: Rocky 10 base image name rockylinux:10 → rockylinux/rockylinux:10
