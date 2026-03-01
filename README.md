@@ -56,6 +56,7 @@ Copyright (C) 2002-2026 R-fx Networks <proj@rfxn.com>
    BATSMAN_OS_EXTRA  :=
    BATSMAN_OS_ALL    := $(BATSMAN_OS_MODERN) $(BATSMAN_OS_LEGACY) $(BATSMAN_OS_DEEP) $(BATSMAN_OS_EXTRA)
    BATSMAN_RUN_TESTS := ./run-tests.sh
+   BATSMAN_PROJECT   := myproject
    include infra/include/Makefile.tests
    ```
 
@@ -457,6 +458,7 @@ BATSMAN_OS_DEEP   :=
 BATSMAN_OS_EXTRA  :=
 BATSMAN_OS_ALL    := $(BATSMAN_OS_MODERN)
 BATSMAN_RUN_TESTS := ./run-tests.sh
+BATSMAN_PROJECT   := mylib
 include infra/include/Makefile.tests
 ```
 
@@ -483,15 +485,15 @@ Pin the submodule to a specific tag for reproducibility:
 ```bash
 cd tests/infra
 git fetch --tags
-git checkout v1.0.1
+git checkout v1.0.2
 cd ../..
 git add tests/infra
-git commit -m "Pin batsman submodule to v1.0.1"
+git commit -m "Pin batsman submodule to v1.0.2"
 ```
 
 In CI workflow callers, reference the same tag:
 ```yaml
-uses: rfxn/batsman/.github/workflows/test.yml@v1.0.1
+uses: rfxn/batsman/.github/workflows/test.yml@v1.0.2
 ```
 
 ## Consumer Projects

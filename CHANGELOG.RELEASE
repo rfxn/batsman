@@ -1,32 +1,26 @@
 - 1.0.2 | Feb 28 2026:
-[New] --clean CLI option removes base and test images for the target OS after
-      test run completes; test exit codes preserved (cleanup never masks failures)
-[New] batsman_clean() public function with three modes: current OS (default),
-      --all (all project images), --dangling-only (prune dangling images)
-[New] Automatic dangling image prune after every Docker build — silent, always
-      safe, reclaims orphaned layers from tag replacement
-[New] Makefile targets: clean (current project), clean-all (all batsman projects),
-      clean-dangling (dangling only)
-[New] BATSMAN_VERSION variable in run-tests-core.sh — consumer projects and
-      CI can now query the batsman version programmatically
-[New] --version CLI option prints batsman version and exits
 [Change] BATS version bump 1.11.0 → 1.13.0 — unlocks --abort (fail-fast),
       --negative-filter, BATS_TEST_TIMEOUT bug fixes, JUnit XML fixes;
       Bash floor remains 3.2+ (CentOS 6 compatible)
+[New] --version CLI option and BATSMAN_VERSION variable — consumer projects
+      and CI can query the batsman version programmatically
 [New] --timeout SECS CLI option and BATSMAN_TEST_TIMEOUT env var for per-test
       timeout protection (passed as BATS_TEST_TIMEOUT into containers)
 [New] --abort CLI option for fail-fast — stops on first test failure; in
       parallel mode applies per-group (each container aborts independently)
 [New] --filter-tags TAG CLI option for tag-based test selection — passthrough
       to bats --filter-tags (comma-separated, ! to negate; requires BATS 1.8.0+)
+[New] --report-dir DIR CLI option, BATSMAN_REPORT_DIR env var, and Makefile
+      test-report target for JUnit XML report generation; sequential/direct
+      produce DIR/report.xml, parallel produces DIR/group-N/report.xml per
+      group; CI workflow uploads artifacts (14-day retention) and writes job
+      summary with test/failure/error/skipped/duration table
+[New] --clean CLI option and batsman_clean() function for Docker image cleanup
+      — removes base and test images after test run (test exit codes preserved);
+      three modes: current OS (default), --all (all project images),
+      --dangling-only; automatic dangling prune after every build; Makefile
+      targets: clean, clean-all, clean-dangling
 [New] CI concurrency groups — rapid pushes to the same branch auto-cancel
       superseded runs per-OS; optional concurrency-group input for custom prefix
-[New] --report-dir DIR CLI option and BATSMAN_REPORT_DIR env var for JUnit XML
-      report generation; sequential/direct produce DIR/report.xml, parallel
-      produces DIR/group-N/report.xml per group (volume-mounted into containers)
-[New] CI workflow: JUnit XML artifact upload (14-day retention) and GitHub
-      job summary with test/failure/error/skipped/duration table
-[New] CI workflow: test-path input (default /opt/tests) for explicit bats
-      invocation; reports boolean input (default true) for opt-out
-[New] Makefile: test-report target generates JUnit XML reports in reports/
-      directory via --report-dir
+[New] CI workflow: test-path input (default /opt/tests) and reports boolean
+      input (default true) for per-caller customization
