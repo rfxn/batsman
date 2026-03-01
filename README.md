@@ -1,10 +1,11 @@
 # batsman — Shared BATS Test Infrastructure
 
 [![Version](https://img.shields.io/github/v/tag/rfxn/batsman?label=version&sort=semver)](https://github.com/rfxn/batsman/releases)
+[![Self-Tests](https://github.com/rfxn/batsman/actions/workflows/self-test.yml/badge.svg)](https://github.com/rfxn/batsman/actions/workflows/self-test.yml)
 [![License: GPL v2](https://img.shields.io/badge/license-GPLv2-blue.svg)](https://www.gnu.org/licenses/old-licenses/gpl-2.0.html)
 [![GitHub Issues](https://img.shields.io/github/issues/rfxn/batsman)](https://github.com/rfxn/batsman/issues)
 [![Shell](https://img.shields.io/badge/shell-bash-green.svg)](https://www.gnu.org/software/bash/)
-[![BATS](https://img.shields.io/badge/bats--core-1.11.0-orange.svg)](https://github.com/bats-core/bats-core)
+[![BATS](https://img.shields.io/badge/bats--core-1.13.0-orange.svg)](https://github.com/bats-core/bats-core)
 
 Shared BATS test infrastructure for R-fx Networks projects.
 Consumed as a git submodule at `tests/infra/` in each project.
@@ -56,6 +57,7 @@ Copyright (C) 2002-2026 R-fx Networks <proj@rfxn.com>
    BATSMAN_OS_EXTRA  :=
    BATSMAN_OS_ALL    := $(BATSMAN_OS_MODERN) $(BATSMAN_OS_LEGACY) $(BATSMAN_OS_DEEP) $(BATSMAN_OS_EXTRA)
    BATSMAN_RUN_TESTS := ./run-tests.sh
+   BATSMAN_PROJECT   := myproject
    include infra/include/Makefile.tests
    ```
 
@@ -97,6 +99,20 @@ project images rebuild only when project code changes.
 - **Sequential fallback:** When `--parallel` is not passed, tests run in a
   single container.
 
+### Image Lifecycle
+
+Docker images accumulate across test runs. batsman provides opt-in cleanup:
+
+- **Auto-prune:** After every build, dangling images (orphaned by tag
+  replacement) are automatically pruned. This is silent and always safe.
+- **`--clean` flag:** Removes the base and test images for the target OS after
+  the test run completes. Test exit codes are preserved — cleanup never masks
+  failures.
+- **`batsman_clean()`:** Public function callable from scripts with three modes:
+  no args (current OS), `--all` (all project images), `--dangling-only`.
+- **Makefile targets:** `clean` (current project), `clean-all` (all batsman
+  projects), `clean-dangling` (dangling only).
+
 ### CI: Reusable Workflow
 
 `.github/workflows/test.yml` is a reusable GitHub Actions workflow called via
@@ -111,6 +127,16 @@ project images rebuild only when project code changes.
 The hybrid approach (docker-container for cached base build, plain docker for
 project build) works around limitations with `type=gha` cache on older Docker
 versions.
+
+**JUnit reporting:** When `reports: true` (default), each OS job generates a
+JUnit XML report via `--report-formatter junit`, uploads it as a GitHub
+artifact (14-day retention), and writes a test summary table to the job
+summary page.
+
+**Concurrency control:** Each OS job runs in a concurrency group keyed by
+`<project-name>-<git-ref>-<os>`. Rapid pushes to the same branch auto-cancel
+superseded runs per-OS. Callers can override the prefix with the
+`concurrency-group` input.
 
 ## Supported OS Targets
 
@@ -240,6 +266,7 @@ BATSMAN_OS_DEEP   := centos6 ubuntu1204
 BATSMAN_OS_EXTRA  := rocky10
 BATSMAN_OS_ALL    := $(BATSMAN_OS_MODERN) $(BATSMAN_OS_LEGACY) $(BATSMAN_OS_DEEP) $(BATSMAN_OS_EXTRA)
 BATSMAN_RUN_TESTS := ./run-tests.sh
+BATSMAN_PROJECT   := myproject
 
 include infra/include/Makefile.tests
 ```
@@ -257,11 +284,13 @@ on:
     branches: [master]
 jobs:
   test:
-    uses: rfxn/batsman/.github/workflows/test.yml@v1.0.1
+    uses: rfxn/batsman/.github/workflows/test.yml@v1.0.2
     with:
       project-name: myproject
       os-matrix: '["debian12","centos7","rocky8","rocky9","ubuntu2004","ubuntu2404"]'
       docker-run-flags: '--privileged'    # omit if not needed
+      # test-path: '/opt/custom/tests'    # override if non-standard (default: /opt/tests)
+      # reports: false                    # disable JUnit reports (default: true)
 ```
 
 ## Configuration Reference
@@ -270,7 +299,7 @@ jobs:
 
 | Variable | Default | Purpose |
 |----------|---------|---------|
-| `BATS_VERSION` | `1.11.0` | bats-core version |
+| `BATS_VERSION` | `1.13.0` | bats-core version |
 | `BATS_SUPPORT_VERSION` | `0.3.0` | bats-support version |
 | `BATS_ASSERT_VERSION` | `2.1.0` | bats-assert version |
 | `TLS_FALLBACK` | `0` | TLS mode: 0=standard wget, 1=wget --no-check-certificate with curl fallback, 2=curl primary with wget fallback |
@@ -288,6 +317,8 @@ jobs:
 | `BATSMAN_CONTAINER_TEST_PATH` | yes | Test directory path inside container |
 | `BATSMAN_SUPPORTED_OS` | yes | Space-separated list of supported OS targets |
 | `BATSMAN_BASE_OS_MAP` | no | Variant-to-base mappings (e.g. `"yara-x=debian12"`) |
+| `BATSMAN_TEST_TIMEOUT` | no | Per-test timeout in seconds (passed as `BATS_TEST_TIMEOUT`) |
+| `BATSMAN_REPORT_DIR` | no | Host directory for JUnit XML reports (passed as `--report-dir`) |
 
 ### Makefile.tests Variables
 
@@ -299,6 +330,7 @@ jobs:
 | `BATSMAN_OS_EXTRA` | no | Extra OS targets (e.g. rocky10, yara-x) |
 | `BATSMAN_OS_ALL` | yes | Combined full OS list |
 | `BATSMAN_RUN_TESTS` | yes | Path to project run-tests.sh |
+| `BATSMAN_PROJECT` | no* | Project name for image tags (required for `clean` targets) |
 
 ### CI Workflow Inputs
 
@@ -309,8 +341,24 @@ jobs:
 | `docker-run-flags` | no | `""` | Extra docker run flags |
 | `timeout` | no | `15` | Job timeout in minutes |
 | `dockerfile-dir` | no | `tests` | Directory containing project Dockerfiles |
+| `concurrency-group` | no | `""` | Concurrency group prefix (empty = default per-project grouping) |
+| `test-path` | no | `/opt/tests` | Test directory path inside container |
+| `reports` | no | `true` | Generate JUnit XML reports and upload as artifacts |
 
 ## Common Use Cases
+
+### Self-Tests
+
+batsman includes its own test suite that validates the orchestration engine.
+It bootstraps itself — the engine builds a Docker image from its own base
+Dockerfiles, copies its library into the container, and runs BATS tests
+against it. Unit tests cover argument parsing, variable validation, variant
+mapping, parallel distribution, and file discovery.
+
+```bash
+make -C tests test            # parallel (default)
+make -C tests test-verbose    # pretty output (sequential)
+```
 
 ### Make Targets
 
@@ -319,6 +367,7 @@ jobs:
 | `test` | Default OS, parallel (default goal) |
 | `test-serial` | Default OS, sequential (single container) |
 | `test-verbose` | Default OS, pretty formatter (sequential) |
+| `test-report` | Default OS, parallel, JUnit XML in `reports/` |
 | `test-<os>` | Specific OS, parallel |
 | `test-modern` | Modern tier, sequential across OS |
 | `test-legacy` | Legacy tier, sequential across OS |
@@ -328,6 +377,9 @@ jobs:
 | `test-legacy-parallel` | Legacy tier, parallel across OS |
 | `test-deep-legacy-parallel` | Deep legacy tier, parallel across OS |
 | `test-all-parallel` | All tiers, parallel across OS |
+| `clean` | Remove all images for current project |
+| `clean-all` | Remove all batsman project images across all projects |
+| `clean-dangling` | Prune dangling images only (always safe) |
 
 ### Script CLI
 
@@ -349,6 +401,27 @@ jobs:
 
 # Pretty output (sequential only)
 ./tests/run-tests.sh --formatter pretty
+
+# Per-test timeout (30 seconds)
+./tests/run-tests.sh --timeout 30 --parallel
+
+# Filter tests by tag
+./tests/run-tests.sh --filter-tags "smoke" --parallel
+
+# Exclude slow-tagged tests
+./tests/run-tests.sh --filter-tags '!slow' --parallel
+
+# Stop on first failure
+./tests/run-tests.sh --abort --parallel
+
+# Generate JUnit XML reports
+./tests/run-tests.sh --report-dir /tmp/reports --parallel
+
+# Clean up project images after test run
+./tests/run-tests.sh --os rocky9 --clean --parallel
+
+# Show batsman version
+./tests/run-tests.sh --version
 ```
 
 ## Using batsman in Your Own Project
@@ -399,6 +472,7 @@ BATSMAN_OS_DEEP   :=
 BATSMAN_OS_EXTRA  :=
 BATSMAN_OS_ALL    := $(BATSMAN_OS_MODERN)
 BATSMAN_RUN_TESTS := ./run-tests.sh
+BATSMAN_PROJECT   := mylib
 include infra/include/Makefile.tests
 ```
 
@@ -425,15 +499,15 @@ Pin the submodule to a specific tag for reproducibility:
 ```bash
 cd tests/infra
 git fetch --tags
-git checkout v1.0.1
+git checkout v1.0.2
 cd ../..
 git add tests/infra
-git commit -m "Pin batsman submodule to v1.0.1"
+git commit -m "Pin batsman submodule to v1.0.2"
 ```
 
 In CI workflow callers, reference the same tag:
 ```yaml
-uses: rfxn/batsman/.github/workflows/test.yml@v1.0.1
+uses: rfxn/batsman/.github/workflows/test.yml@v1.0.2
 ```
 
 ## Consumer Projects
@@ -441,9 +515,9 @@ uses: rfxn/batsman/.github/workflows/test.yml@v1.0.1
 | Project | Docker Flags | Container Test Path | OS Targets | Notable | Repository |
 |---------|-------------|--------------------|-----------:|---------|------------|
 | APF | `--privileged` | `/opt/tests` | 9 | iptables/netfilter tests | [rfxn/apf](https://github.com/rfxn/apf) |
-| BFD | (none) | `/opt/bfd/tests` | 9 | Non-standard test path | [rfxn/bfd](https://github.com/rfxn/bfd) |
+| BFD | (none) | `/opt/tests` | 9 | | [rfxn/bfd](https://github.com/rfxn/bfd) |
 | LMD | (none) | `/opt/tests` | 9 + yara-x | BATSMAN_BASE_OS_MAP for yara-x variant | [rfxn/lmd](https://github.com/rfxn/lmd) |
-| tlog_lib | (none) | `/opt/tlog_lib/tests` | 9 | Zero project packages needed | [rfxn/tlog_lib](https://github.com/rfxn/tlog_lib) |
+| tlog_lib | (none) | `/opt/tests` | 9 | Zero project packages needed | [rfxn/tlog_lib](https://github.com/rfxn/tlog_lib) |
 
 ## License
 

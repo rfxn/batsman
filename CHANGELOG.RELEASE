@@ -1,11 +1,36 @@
-- 1.0.1 | Feb 27 2026:
-[Fix] dockerfiles: Rocky 10 base image name rockylinux:10 → rockylinux/rockylinux:10
-      (not published to Docker Hub library, only to rockylinux org namespace)
-[New] BATSMAN_BASE_OS_MAP: variant-to-base OS mapping for project-specific
-      non-OS targets (e.g., yara-x → debian12 base)
-[New] include/Makefile.tests — parameterized GNU Make include with per-OS,
-      tier-grouped, and cross-OS parallel targets via $(eval $(call))
-[New] .github/workflows/test.yml — reusable CI workflow with two-phase
-      Docker build, GHA cache for base images, workflow_call interface
-[Fix] dockerfiles: Rocky 8/9 coreutils-single conflict with coreutils
-      on minimal images — omit coreutils from package list
+- 1.0.2 | Feb 28 2026:
+[Change] BATS version bump 1.11.0 → 1.13.0 — unlocks --abort (fail-fast),
+      --negative-filter, BATS_TEST_TIMEOUT bug fixes, JUnit XML fixes;
+      Bash floor remains 3.2+ (CentOS 6 compatible)
+[New] --version CLI option and BATSMAN_VERSION variable — consumer projects
+      and CI can query the batsman version programmatically
+[New] --timeout SECS CLI option and BATSMAN_TEST_TIMEOUT env var for per-test
+      timeout protection (passed as BATS_TEST_TIMEOUT into containers)
+[New] --abort CLI option for fail-fast — stops on first test failure; in
+      parallel mode applies per-group (each container aborts independently)
+[New] --filter-tags TAG CLI option for tag-based test selection — passthrough
+      to bats --filter-tags (comma-separated, ! to negate; requires BATS 1.8.0+)
+[New] --report-dir DIR CLI option, BATSMAN_REPORT_DIR env var, and Makefile
+      test-report target for JUnit XML report generation; sequential/direct
+      produce DIR/report.xml, parallel produces DIR/group-N/report.xml per
+      group; CI workflow uploads artifacts (14-day retention) and writes job
+      summary with test/failure/error/skipped/duration table
+[New] --clean CLI option and batsman_clean() function for Docker image cleanup
+      — removes base and test images after test run (test exit codes preserved);
+      three modes: current OS (default), --all (all project images),
+      --dangling-only; automatic dangling prune after every build; Makefile
+      targets: clean, clean-all, clean-dangling
+[New] CI concurrency groups — rapid pushes to the same branch auto-cancel
+      superseded runs per-OS; optional concurrency-group input for custom prefix
+[New] CI workflow: test-path input (default /opt/tests) and reports boolean
+      input (default true) for per-caller customization
+[Fix] Makefile clean-all: match variant image suffixes (e.g., yara-x) in
+      addition to standard OS targets
+[Fix] CI workflow: JUnit summary step tolerates missing XML attributes
+      (errors, skipped) — grep failures no longer kill the step under set -e
+[New] Self-test suite — batsman tests itself via self-bootstrap; unit tests
+      cover argument parsing, variable validation, variant mapping, parallel
+      distribution, and file discovery (74 tests across 4 test files)
+[New] CI workflow for self-tests — standalone workflow (cannot reuse test.yml
+      because infra IS the repo root, not a submodule); lint + Docker build +
+      BATS run with JUnit reports and job summary

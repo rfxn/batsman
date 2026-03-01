@@ -11,6 +11,7 @@
 #   BATSMAN_OS_EXTRA  :=
 #   BATSMAN_OS_ALL    := $(BATSMAN_OS_MODERN) $(BATSMAN_OS_LEGACY) $(BATSMAN_OS_DEEP) $(BATSMAN_OS_EXTRA)
 #   BATSMAN_RUN_TESTS := ./run-tests.sh
+#   BATSMAN_PROJECT   := myproject    (required for clean targets)
 #
 #   include infra/include/Makefile.tests
 
@@ -20,7 +21,7 @@ PARALLEL_JOBS ?= $(shell echo $$(( $$(nproc) * 2 )) | awk '{ print ($$1 < 1) ? 1
 # ---------------------------------------------------------------------------
 # Core targets (defined first so 'test' is the default goal)
 # ---------------------------------------------------------------------------
-.PHONY: test test-serial test-verbose
+.PHONY: test test-serial test-verbose test-report
 
 test:
 	$(BATSMAN_RUN_TESTS) --parallel
@@ -30,6 +31,11 @@ test-serial:
 
 test-verbose:
 	$(BATSMAN_RUN_TESTS) --formatter pretty
+
+test-report:
+	mkdir -p reports
+	$(BATSMAN_RUN_TESTS) --parallel --report-dir reports
+	@echo "Reports: reports/"
 
 # ---------------------------------------------------------------------------
 # Per-OS target generation: test-<os> for each OS in BATSMAN_OS_ALL
@@ -83,3 +89,33 @@ test-deep-legacy-parallel:
 test-all-parallel:
 	printf '%s\n' $(BATSMAN_OS_ALL) | \
 	  xargs -P $(PARALLEL_JOBS) -I{} $(BATSMAN_RUN_TESTS) --os {} --parallel
+
+# ---------------------------------------------------------------------------
+# Image cleanup targets
+# ---------------------------------------------------------------------------
+# Batsman image tags follow <project>-(base|test)-<os-or-variant>.
+# The -(base|test)- infix is structurally unique to batsman — no standard
+# Docker images use this pattern. clean-all matches on structure alone so
+# variant suffixes (e.g., yara-x) are included automatically.
+
+.PHONY: clean clean-all clean-dangling
+
+clean:
+	@echo "=== Removing $(BATSMAN_PROJECT) images ==="
+	@docker images --format '{{.Repository}}:{{.Tag}}' | \
+	  grep -E '^$(BATSMAN_PROJECT)-(test|base)-' | \
+	  while read -r img; do echo "  Removing $$img"; docker rmi "$$img" 2>/dev/null || true; done
+	@docker image prune -f >/dev/null 2>&1 || true
+
+clean-all:
+	@echo "=== Removing all batsman project images ==="
+	@docker images --format '{{.Repository}}:{{.Tag}}' | \
+	  grep -E '^[a-z0-9_]+-test-[a-z]' | \
+	  while read -r img; do echo "  Removing $$img"; docker rmi "$$img" 2>/dev/null || true; done
+	@docker images --format '{{.Repository}}:{{.Tag}}' | \
+	  grep -E '^[a-z0-9_]+-base-[a-z]' | \
+	  while read -r img; do echo "  Removing $$img"; docker rmi "$$img" 2>/dev/null || true; done
+	@docker image prune -f >/dev/null 2>&1 || true
+
+clean-dangling:
+	docker image prune -f

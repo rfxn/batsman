@@ -9,7 +9,7 @@
 #   RUN TLS_FALLBACK=0 bash /tmp/install-bats.sh && rm -f /tmp/install-bats.sh
 #
 # Environment variables:
-#   BATS_VERSION          bats-core version       (default: 1.11.0)
+#   BATS_VERSION          bats-core version       (default: 1.13.0)
 #   BATS_SUPPORT_VERSION  bats-support version    (default: 0.3.0)
 #   BATS_ASSERT_VERSION   bats-assert version     (default: 2.1.0)
 #   TLS_FALLBACK          TLS download strategy   (default: 0)
@@ -19,7 +19,7 @@
 
 set -e
 
-BATS_VERSION="${BATS_VERSION:-1.11.0}"
+BATS_VERSION="${BATS_VERSION:-1.13.0}"
 BATS_SUPPORT_VERSION="${BATS_SUPPORT_VERSION:-0.3.0}"
 BATS_ASSERT_VERSION="${BATS_ASSERT_VERSION:-2.1.0}"
 TLS_FALLBACK="${TLS_FALLBACK:-0}"

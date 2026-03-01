@@ -19,11 +19,18 @@
 #   BATSMAN_DOCKER_FLAGS       Extra docker run flags (e.g., "--privileged")
 #   BATSMAN_DEFAULT_OS         Default OS when --os omitted (default: debian12)
 #   BATSMAN_BASE_OS_MAP        Variant→base OS mappings (e.g., "yara-x=debian12")
+#   BATSMAN_TEST_TIMEOUT       Per-test timeout in seconds (passed as BATS_TEST_TIMEOUT)
+#   BATSMAN_REPORT_DIR         Host directory for JUnit XML reports (passed as --report-dir)
 
 if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
     echo "Error: run-tests-core.sh must be sourced, not executed directly." >&2
     exit 1
 fi
+
+# ---------------------------------------------------------------------------
+# Version
+# ---------------------------------------------------------------------------
+BATSMAN_VERSION="1.0.2"
 
 # ---------------------------------------------------------------------------
 # Internal state (set by batsman_parse_args)
@@ -35,23 +42,38 @@ _batsman_formatter="tap"
 _batsman_bats_args=()
 _batsman_explicit_files=0
 _batsman_image_tag=""
+_batsman_test_timeout=""
+_batsman_abort=0
+_batsman_report_dir=""
+_batsman_clean=0
 
 # ---------------------------------------------------------------------------
 # batsman_usage — Print help text parameterized by project vars
 # ---------------------------------------------------------------------------
 batsman_usage() {
     cat <<EOF
-Usage: $0 [--os OS] [--parallel [N]] [--filter PATTERN] [--formatter FMT] [--help] [BATS_ARGS...]
+batsman $BATSMAN_VERSION — test orchestration engine
+
+Usage: $0 [OPTIONS] [BATS_ARGS...]
 
 Options:
   --os OS           Target OS (default: ${BATSMAN_DEFAULT_OS:-debian12})
   --parallel [N]    Run test files in N parallel containers (default: nproc*2)
   --filter PATTERN  Filter tests by name (passed to bats --filter)
+  --filter-tags TAG Filter tests by tag (comma-separated, ! to negate)
   --formatter FMT   BATS output formatter: tap (default), pretty
+  --timeout SECS    Per-test timeout in seconds (passed as BATS_TEST_TIMEOUT)
+  --abort           Stop on first test failure (requires BATS 1.13.0+)
+  --report-dir DIR  Write JUnit XML reports to DIR on the host
+  --clean           Remove project images for the target OS after test run
+  --version         Show batsman version and exit
   --help            Show this help
 
 Any remaining arguments are passed directly to bats.
 Specific test file paths bypass parallel mode.
+In parallel mode, --abort applies per-group (each container aborts independently).
+JUnit reports: sequential/direct produce DIR/report.xml; parallel produces
+DIR/group-N/report.xml per group.
 
 Supported OS targets:
   ${BATSMAN_SUPPORTED_OS:-debian12}
@@ -69,6 +91,10 @@ batsman_parse_args() {
     _batsman_formatter="tap"
     _batsman_bats_args=()
     _batsman_explicit_files=0
+    _batsman_test_timeout=""
+    _batsman_abort=0
+    _batsman_report_dir=""
+    _batsman_clean=0
 
     while [ $# -gt 0 ]; do
         case "$1" in
@@ -88,9 +114,31 @@ batsman_parse_args() {
                 shift
                 _batsman_bats_args+=("--filter" "$1")
                 ;;
+            --filter-tags)
+                shift
+                _batsman_bats_args+=("--filter-tags" "$1")
+                ;;
             --formatter)
                 shift
                 _batsman_formatter="$1"
+                ;;
+            --timeout)
+                shift
+                _batsman_test_timeout="$1"
+                ;;
+            --abort)
+                _batsman_abort=1
+                ;;
+            --report-dir)
+                shift
+                _batsman_report_dir="$1"
+                ;;
+            --clean)
+                _batsman_clean=1
+                ;;
+            --version)
+                echo "batsman $BATSMAN_VERSION"
+                exit 0
                 ;;
             --help|-h)
                 batsman_usage 0
@@ -116,6 +164,21 @@ batsman_parse_args() {
         echo "Unsupported OS: $_batsman_os" >&2
         echo "Supported: $BATSMAN_SUPPORTED_OS" >&2
         return 1
+    fi
+
+    # Resolve test timeout: CLI --timeout takes precedence over env var
+    if [ -z "$_batsman_test_timeout" ] && [ -n "${BATSMAN_TEST_TIMEOUT:-}" ]; then
+        _batsman_test_timeout="$BATSMAN_TEST_TIMEOUT"
+    fi
+
+    # Resolve report dir: CLI --report-dir takes precedence over env var
+    if [ -z "$_batsman_report_dir" ] && [ -n "${BATSMAN_REPORT_DIR:-}" ]; then
+        _batsman_report_dir="$BATSMAN_REPORT_DIR"
+    fi
+
+    # Prepend --abort to bats args if requested
+    if [ "$_batsman_abort" -eq 1 ]; then
+        _batsman_bats_args=("--abort" "${_batsman_bats_args[@]}")
     fi
 }
 
@@ -164,33 +227,128 @@ batsman_build() {
     echo "=== Building project image (${BATSMAN_PROJECT}/${_batsman_os}) ==="
     docker build --build-arg "BASE_IMAGE=$base_tag" \
         -f "$project_dockerfile" -t "$_batsman_image_tag" "$BATSMAN_PROJECT_DIR"
+
+    # Prune dangling images left by tag replacement (always safe, silent)
+    docker image prune -f >/dev/null 2>&1 || true
+}
+
+# ---------------------------------------------------------------------------
+# batsman_clean — Remove project Docker images
+#
+# Modes:
+#   (no args)        Remove base + test images for current OS, prune dangling
+#   --all            Remove ALL base + test images for this project, prune dangling
+#   --dangling-only  Prune dangling images only
+# ---------------------------------------------------------------------------
+# shellcheck disable=SC2120
+batsman_clean() {
+    local mode="current"
+    if [ $# -gt 0 ]; then
+        case "$1" in
+            --all)          mode="all" ;;
+            --dangling-only) mode="dangling" ;;
+            *)
+                echo "batsman_clean: unknown option: $1" >&2
+                return 1
+                ;;
+        esac
+    fi
+
+    if [ "$mode" = "dangling" ]; then
+        echo "=== Pruning dangling images ==="
+        docker image prune -f
+        return 0
+    fi
+
+    if [ "$mode" = "all" ]; then
+        echo "=== Removing all ${BATSMAN_PROJECT} images ==="
+        local img
+        # Remove test images first (depend on base), then base images
+        for img in $(docker images --format '{{.Repository}}:{{.Tag}}' | \
+                     grep -E "^${BATSMAN_PROJECT}-test-" 2>/dev/null); do
+            echo "  Removing $img"
+            docker rmi "$img" 2>/dev/null || true
+        done
+        for img in $(docker images --format '{{.Repository}}:{{.Tag}}' | \
+                     grep -E "^${BATSMAN_PROJECT}-base-" 2>/dev/null); do
+            echo "  Removing $img"
+            docker rmi "$img" 2>/dev/null || true
+        done
+    else
+        echo "=== Removing ${BATSMAN_PROJECT} images for ${_batsman_os} ==="
+        local test_img="${BATSMAN_PROJECT}-test-${_batsman_os}"
+        local base_img="${BATSMAN_PROJECT}-base-${_batsman_os}"
+
+        # Resolve base OS for variants (same logic as batsman_build)
+        if [ -n "${BATSMAN_BASE_OS_MAP:-}" ]; then
+            local _map_entry
+            for _map_entry in $BATSMAN_BASE_OS_MAP; do
+                if [ "${_map_entry%%=*}" = "$_batsman_os" ]; then
+                    base_img="${BATSMAN_PROJECT}-base-${_map_entry#*=}"
+                    break
+                fi
+            done
+        fi
+
+        echo "  Removing $test_img"
+        docker rmi "$test_img" 2>/dev/null || true
+        echo "  Removing $base_img"
+        docker rmi "$base_img" 2>/dev/null || true
+    fi
+
+    # Prune dangling images after removal
+    docker image prune -f >/dev/null 2>&1 || true
 }
 
 # ---------------------------------------------------------------------------
 # batsman_run_direct — Run explicit test file paths (no parallel)
 # ---------------------------------------------------------------------------
 batsman_run_direct() {
+    local timeout_env=""
+    [ -n "$_batsman_test_timeout" ] && timeout_env="-e BATS_TEST_TIMEOUT=$_batsman_test_timeout"
+
+    local report_mount="" report_args=""
+    if [ -n "$_batsman_report_dir" ]; then
+        mkdir -p "$_batsman_report_dir"
+        report_mount="-v $(cd "$_batsman_report_dir" && pwd):/reports"
+        report_args="--report-formatter junit --output /reports"
+    fi
+
     echo "=== Running tests: ${_batsman_os} ==="
     # shellcheck disable=SC2086
-    docker run --rm ${BATSMAN_DOCKER_FLAGS:-} "$_batsman_image_tag" \
-        bats --formatter "$_batsman_formatter" "${_batsman_bats_args[@]}"
+    docker run --rm ${BATSMAN_DOCKER_FLAGS:-} $timeout_env $report_mount \
+        "$_batsman_image_tag" \
+        bats --formatter "$_batsman_formatter" $report_args "${_batsman_bats_args[@]}"
 }
 
 # ---------------------------------------------------------------------------
 # batsman_run_sequential — Single container, all tests
 # ---------------------------------------------------------------------------
 batsman_run_sequential() {
+    local timeout_env=""
+    [ -n "$_batsman_test_timeout" ] && timeout_env="-e BATS_TEST_TIMEOUT=$_batsman_test_timeout"
+
+    local report_mount="" report_args=""
+    if [ -n "$_batsman_report_dir" ]; then
+        mkdir -p "$_batsman_report_dir"
+        report_mount="-v $(cd "$_batsman_report_dir" && pwd):/reports"
+        report_args="--report-formatter junit --output /reports"
+    fi
+
     echo "=== Running tests: ${_batsman_os} ==="
     if [ ${#_batsman_bats_args[@]} -gt 0 ]; then
         # bats_args may contain --filter; append test path
         # shellcheck disable=SC2086
-        docker run --rm ${BATSMAN_DOCKER_FLAGS:-} "$_batsman_image_tag" \
-            bats --formatter "$_batsman_formatter" \
+        docker run --rm ${BATSMAN_DOCKER_FLAGS:-} $timeout_env $report_mount \
+            "$_batsman_image_tag" \
+            bats --formatter "$_batsman_formatter" $report_args \
             "${_batsman_bats_args[@]}" "$BATSMAN_CONTAINER_TEST_PATH"
     else
         # shellcheck disable=SC2086
-        docker run --rm ${BATSMAN_DOCKER_FLAGS:-} "$_batsman_image_tag" \
-            bats --formatter "$_batsman_formatter" "$BATSMAN_CONTAINER_TEST_PATH"
+        docker run --rm ${BATSMAN_DOCKER_FLAGS:-} $timeout_env $report_mount \
+            "$_batsman_image_tag" \
+            bats --formatter "$_batsman_formatter" $report_args \
+            "$BATSMAN_CONTAINER_TEST_PATH"
     fi
 }
 
@@ -256,17 +414,34 @@ batsman_run_parallel() {
     }
     trap _batsman_cleanup EXIT INT TERM
 
+    local timeout_env=""
+    [ -n "$_batsman_test_timeout" ] && timeout_env="-e BATS_TEST_TIMEOUT=$_batsman_test_timeout"
+
+    # Per-group report volume mounts (parallel produces group-N subdirectories)
+    local report_mount_base="" report_args=""
+    if [ -n "$_batsman_report_dir" ]; then
+        mkdir -p "$_batsman_report_dir"
+        report_mount_base="$(cd "$_batsman_report_dir" && pwd)"
+        report_args="--report-formatter junit --output /reports"
+    fi
+
     echo "=== Running tests: ${_batsman_os} (parallel: ${num_groups} groups, ${num_files} files) ==="
     local start_time=$SECONDS
 
     # Launch named containers in parallel
     local -a pids
     for i in $(seq 0 $(( num_groups - 1 ))); do
+        local report_mount=""
+        if [ -n "$report_mount_base" ]; then
+            mkdir -p "${report_mount_base}/group-${i}"
+            report_mount="-v ${report_mount_base}/group-${i}:/reports"
+        fi
         # shellcheck disable=SC2086
-        docker run --rm ${BATSMAN_DOCKER_FLAGS:-} \
+        docker run --rm ${BATSMAN_DOCKER_FLAGS:-} $timeout_env $report_mount \
             --name "${BATSMAN_PROJECT}-${_batsman_os}-${run_id}-g${i}" \
             "$_batsman_image_tag" \
-            bats --formatter tap "${_batsman_bats_args[@]}" ${group_files[$i]} \
+            bats --formatter tap $report_args \
+            "${_batsman_bats_args[@]}" ${group_files[$i]} \
             > "$tmpdir_par/group-$i.tap" 2>&1 &
         pids+=($!)
     done
@@ -356,11 +531,18 @@ batsman_run() {
     batsman_parse_args "$@"
     batsman_build
 
+    local test_rc=0
     if [ "$_batsman_explicit_files" -eq 1 ]; then
-        batsman_run_direct
+        batsman_run_direct || test_rc=$?
     elif [ "$_batsman_parallel" -eq 0 ]; then
-        batsman_run_sequential
+        batsman_run_sequential || test_rc=$?
     else
-        batsman_run_parallel
+        batsman_run_parallel || test_rc=$?
     fi
+
+    if [ "$_batsman_clean" -eq 1 ]; then
+        batsman_clean
+    fi
+
+    return "$test_rc"
 }
