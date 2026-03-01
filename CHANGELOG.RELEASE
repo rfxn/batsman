@@ -31,3 +31,6 @@
 [New] Self-test suite — batsman tests itself via self-bootstrap; unit tests
       cover argument parsing, variable validation, variant mapping, parallel
       distribution, and file discovery (74 tests across 4 test files)
+[New] CI workflow for self-tests — standalone workflow (cannot reuse test.yml
+      because infra IS the repo root, not a submodule); lint + Docker build +
+      BATS run with JUnit reports and job summary

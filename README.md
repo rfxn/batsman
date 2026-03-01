@@ -1,6 +1,7 @@
 # batsman — Shared BATS Test Infrastructure
 
 [![Version](https://img.shields.io/github/v/tag/rfxn/batsman?label=version&sort=semver)](https://github.com/rfxn/batsman/releases)
+[![Self-Tests](https://github.com/rfxn/batsman/actions/workflows/self-test.yml/badge.svg)](https://github.com/rfxn/batsman/actions/workflows/self-test.yml)
 [![License: GPL v2](https://img.shields.io/badge/license-GPLv2-blue.svg)](https://www.gnu.org/licenses/old-licenses/gpl-2.0.html)
 [![GitHub Issues](https://img.shields.io/github/issues/rfxn/batsman)](https://github.com/rfxn/batsman/issues)
 [![Shell](https://img.shields.io/badge/shell-bash-green.svg)](https://www.gnu.org/software/bash/)
