@@ -24,3 +24,7 @@
       superseded runs per-OS; optional concurrency-group input for custom prefix
 [New] CI workflow: test-path input (default /opt/tests) and reports boolean
       input (default true) for per-caller customization
+[Fix] Makefile clean-all: match variant image suffixes (e.g., yara-x) in
+      addition to standard OS targets
+[Fix] CI workflow: JUnit summary step tolerates missing XML attributes
+      (errors, skipped) — grep failures no longer kill the step under set -e

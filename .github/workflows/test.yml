@@ -132,11 +132,11 @@ jobs:
             echo "No JUnit report found — skipping summary" >&2
             exit 0
           fi
-          tests=$(grep -o 'tests="[0-9]*"' "$REPORT_FILE" | head -1 | grep -o '[0-9]*')
-          failures=$(grep -o 'failures="[0-9]*"' "$REPORT_FILE" | head -1 | grep -o '[0-9]*')
-          errors=$(grep -o 'errors="[0-9]*"' "$REPORT_FILE" | head -1 | grep -o '[0-9]*')
-          skipped=$(grep -o 'skipped="[0-9]*"' "$REPORT_FILE" | head -1 | grep -o '[0-9]*')
-          time=$(grep -o 'time="[0-9.]*"' "$REPORT_FILE" | head -1 | grep -o '[0-9.]*')
+          tests=$(grep -o 'tests="[0-9]*"' "$REPORT_FILE" | head -1 | grep -o '[0-9]*' || echo "0")
+          failures=$(grep -o 'failures="[0-9]*"' "$REPORT_FILE" | head -1 | grep -o '[0-9]*' || echo "0")
+          errors=$(grep -o 'errors="[0-9]*"' "$REPORT_FILE" | head -1 | grep -o '[0-9]*' || echo "0")
+          skipped=$(grep -o 'skipped="[0-9]*"' "$REPORT_FILE" | head -1 | grep -o '[0-9]*' || echo "0")
+          time=$(grep -o 'time="[0-9.]*"' "$REPORT_FILE" | head -1 | grep -o '[0-9.]*' || echo "?")
           echo "## Test Results: ${{ matrix.os }}" >> "$GITHUB_STEP_SUMMARY"
           echo "" >> "$GITHUB_STEP_SUMMARY"
           echo "| Metric | Count |" >> "$GITHUB_STEP_SUMMARY"

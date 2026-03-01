@@ -93,8 +93,10 @@ test-all-parallel:
 # ---------------------------------------------------------------------------
 # Image cleanup targets
 # ---------------------------------------------------------------------------
-# Known batsman OS suffixes for safe matching (avoids false positives)
-_BATSMAN_OS_RE := debian12|centos[67]|rocky[89]|rocky10|ubuntu1204|ubuntu2004|ubuntu2404
+# Batsman image tags follow <project>-(base|test)-<os-or-variant>.
+# The -(base|test)- infix is structurally unique to batsman — no standard
+# Docker images use this pattern. clean-all matches on structure alone so
+# variant suffixes (e.g., yara-x) are included automatically.
 
 .PHONY: clean clean-all clean-dangling
 
@@ -108,10 +110,10 @@ clean:
 clean-all:
 	@echo "=== Removing all batsman project images ==="
 	@docker images --format '{{.Repository}}:{{.Tag}}' | \
-	  grep -E '^[a-z0-9_]+-test-($(_BATSMAN_OS_RE))$$' | \
+	  grep -E '^[a-z0-9_]+-test-[a-z]' | \
 	  while read -r img; do echo "  Removing $$img"; docker rmi "$$img" 2>/dev/null || true; done
 	@docker images --format '{{.Repository}}:{{.Tag}}' | \
-	  grep -E '^[a-z0-9_]+-base-($(_BATSMAN_OS_RE))$$' | \
+	  grep -E '^[a-z0-9_]+-base-[a-z]' | \
 	  while read -r img; do echo "  Removing $$img"; docker rmi "$$img" 2>/dev/null || true; done
 	@docker image prune -f >/dev/null 2>&1 || true
 
