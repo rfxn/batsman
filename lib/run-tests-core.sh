@@ -45,6 +45,7 @@ _batsman_image_tag=""
 _batsman_test_timeout=""
 _batsman_abort=0
 _batsman_report_dir=""
+_batsman_clean=0
 
 # ---------------------------------------------------------------------------
 # batsman_usage — Print help text parameterized by project vars
@@ -64,6 +65,7 @@ Options:
   --timeout SECS    Per-test timeout in seconds (passed as BATS_TEST_TIMEOUT)
   --abort           Stop on first test failure (requires BATS 1.13.0+)
   --report-dir DIR  Write JUnit XML reports to DIR on the host
+  --clean           Remove project images for the target OS after test run
   --version         Show batsman version and exit
   --help            Show this help
 
@@ -92,6 +94,7 @@ batsman_parse_args() {
     _batsman_test_timeout=""
     _batsman_abort=0
     _batsman_report_dir=""
+    _batsman_clean=0
 
     while [ $# -gt 0 ]; do
         case "$1" in
@@ -129,6 +132,9 @@ batsman_parse_args() {
             --report-dir)
                 shift
                 _batsman_report_dir="$1"
+                ;;
+            --clean)
+                _batsman_clean=1
                 ;;
             --version)
                 echo "batsman $BATSMAN_VERSION"
@@ -221,6 +227,77 @@ batsman_build() {
     echo "=== Building project image (${BATSMAN_PROJECT}/${_batsman_os}) ==="
     docker build --build-arg "BASE_IMAGE=$base_tag" \
         -f "$project_dockerfile" -t "$_batsman_image_tag" "$BATSMAN_PROJECT_DIR"
+
+    # Prune dangling images left by tag replacement (always safe, silent)
+    docker image prune -f >/dev/null 2>&1 || true
+}
+
+# ---------------------------------------------------------------------------
+# batsman_clean — Remove project Docker images
+#
+# Modes:
+#   (no args)        Remove base + test images for current OS, prune dangling
+#   --all            Remove ALL base + test images for this project, prune dangling
+#   --dangling-only  Prune dangling images only
+# ---------------------------------------------------------------------------
+# shellcheck disable=SC2120
+batsman_clean() {
+    local mode="current"
+    if [ $# -gt 0 ]; then
+        case "$1" in
+            --all)          mode="all" ;;
+            --dangling-only) mode="dangling" ;;
+            *)
+                echo "batsman_clean: unknown option: $1" >&2
+                return 1
+                ;;
+        esac
+    fi
+
+    if [ "$mode" = "dangling" ]; then
+        echo "=== Pruning dangling images ==="
+        docker image prune -f
+        return 0
+    fi
+
+    if [ "$mode" = "all" ]; then
+        echo "=== Removing all ${BATSMAN_PROJECT} images ==="
+        local img
+        # Remove test images first (depend on base), then base images
+        for img in $(docker images --format '{{.Repository}}:{{.Tag}}' | \
+                     grep -E "^${BATSMAN_PROJECT}-test-" 2>/dev/null); do
+            echo "  Removing $img"
+            docker rmi "$img" 2>/dev/null || true
+        done
+        for img in $(docker images --format '{{.Repository}}:{{.Tag}}' | \
+                     grep -E "^${BATSMAN_PROJECT}-base-" 2>/dev/null); do
+            echo "  Removing $img"
+            docker rmi "$img" 2>/dev/null || true
+        done
+    else
+        echo "=== Removing ${BATSMAN_PROJECT} images for ${_batsman_os} ==="
+        local test_img="${BATSMAN_PROJECT}-test-${_batsman_os}"
+        local base_img="${BATSMAN_PROJECT}-base-${_batsman_os}"
+
+        # Resolve base OS for variants (same logic as batsman_build)
+        if [ -n "${BATSMAN_BASE_OS_MAP:-}" ]; then
+            local _map_entry
+            for _map_entry in $BATSMAN_BASE_OS_MAP; do
+                if [ "${_map_entry%%=*}" = "$_batsman_os" ]; then
+                    base_img="${BATSMAN_PROJECT}-base-${_map_entry#*=}"
+                    break
+                fi
+            done
+        fi
+
+        echo "  Removing $test_img"
+        docker rmi "$test_img" 2>/dev/null || true
+        echo "  Removing $base_img"
+        docker rmi "$base_img" 2>/dev/null || true
+    fi
+
+    # Prune dangling images after removal
+    docker image prune -f >/dev/null 2>&1 || true
 }
 
 # ---------------------------------------------------------------------------
@@ -454,11 +531,18 @@ batsman_run() {
     batsman_parse_args "$@"
     batsman_build
 
+    local test_rc=0
     if [ "$_batsman_explicit_files" -eq 1 ]; then
-        batsman_run_direct
+        batsman_run_direct || test_rc=$?
     elif [ "$_batsman_parallel" -eq 0 ]; then
-        batsman_run_sequential
+        batsman_run_sequential || test_rc=$?
     else
-        batsman_run_parallel
+        batsman_run_parallel || test_rc=$?
     fi
+
+    if [ "$_batsman_clean" -eq 1 ]; then
+        batsman_clean
+    fi
+
+    return "$test_rc"
 }

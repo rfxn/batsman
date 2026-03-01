@@ -97,6 +97,20 @@ project images rebuild only when project code changes.
 - **Sequential fallback:** When `--parallel` is not passed, tests run in a
   single container.
 
+### Image Lifecycle
+
+Docker images accumulate across test runs. batsman provides opt-in cleanup:
+
+- **Auto-prune:** After every build, dangling images (orphaned by tag
+  replacement) are automatically pruned. This is silent and always safe.
+- **`--clean` flag:** Removes the base and test images for the target OS after
+  the test run completes. Test exit codes are preserved — cleanup never masks
+  failures.
+- **`batsman_clean()`:** Public function callable from scripts with three modes:
+  no args (current OS), `--all` (all project images), `--dangling-only`.
+- **Makefile targets:** `clean` (current project), `clean-all` (all batsman
+  projects), `clean-dangling` (dangling only).
+
 ### CI: Reusable Workflow
 
 `.github/workflows/test.yml` is a reusable GitHub Actions workflow called via
@@ -250,6 +264,7 @@ BATSMAN_OS_DEEP   := centos6 ubuntu1204
 BATSMAN_OS_EXTRA  := rocky10
 BATSMAN_OS_ALL    := $(BATSMAN_OS_MODERN) $(BATSMAN_OS_LEGACY) $(BATSMAN_OS_DEEP) $(BATSMAN_OS_EXTRA)
 BATSMAN_RUN_TESTS := ./run-tests.sh
+BATSMAN_PROJECT   := myproject
 
 include infra/include/Makefile.tests
 ```
@@ -313,6 +328,7 @@ jobs:
 | `BATSMAN_OS_EXTRA` | no | Extra OS targets (e.g. rocky10, yara-x) |
 | `BATSMAN_OS_ALL` | yes | Combined full OS list |
 | `BATSMAN_RUN_TESTS` | yes | Path to project run-tests.sh |
+| `BATSMAN_PROJECT` | no* | Project name for image tags (required for `clean` targets) |
 
 ### CI Workflow Inputs
 
@@ -346,6 +362,9 @@ jobs:
 | `test-legacy-parallel` | Legacy tier, parallel across OS |
 | `test-deep-legacy-parallel` | Deep legacy tier, parallel across OS |
 | `test-all-parallel` | All tiers, parallel across OS |
+| `clean` | Remove all images for current project |
+| `clean-all` | Remove all batsman project images across all projects |
+| `clean-dangling` | Prune dangling images only (always safe) |
 
 ### Script CLI
 
@@ -382,6 +401,9 @@ jobs:
 
 # Generate JUnit XML reports
 ./tests/run-tests.sh --report-dir /tmp/reports --parallel
+
+# Clean up project images after test run
+./tests/run-tests.sh --os rocky9 --clean --parallel
 
 # Show batsman version
 ./tests/run-tests.sh --version

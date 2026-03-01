@@ -1,4 +1,12 @@
 - 1.0.2 | Feb 28 2026:
+[New] --clean CLI option removes base and test images for the target OS after
+      test run completes; test exit codes preserved (cleanup never masks failures)
+[New] batsman_clean() public function with three modes: current OS (default),
+      --all (all project images), --dangling-only (prune dangling images)
+[New] Automatic dangling image prune after every Docker build — silent, always
+      safe, reclaims orphaned layers from tag replacement
+[New] Makefile targets: clean (current project), clean-all (all batsman projects),
+      clean-dangling (dangling only)
 [New] BATSMAN_VERSION variable in run-tests-core.sh — consumer projects and
       CI can now query the batsman version programmatically
 [New] --version CLI option prints batsman version and exits

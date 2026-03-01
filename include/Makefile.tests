@@ -11,6 +11,7 @@
 #   BATSMAN_OS_EXTRA  :=
 #   BATSMAN_OS_ALL    := $(BATSMAN_OS_MODERN) $(BATSMAN_OS_LEGACY) $(BATSMAN_OS_DEEP) $(BATSMAN_OS_EXTRA)
 #   BATSMAN_RUN_TESTS := ./run-tests.sh
+#   BATSMAN_PROJECT   := myproject    (required for clean targets)
 #
 #   include infra/include/Makefile.tests
 
@@ -88,3 +89,31 @@ test-deep-legacy-parallel:
 test-all-parallel:
 	printf '%s\n' $(BATSMAN_OS_ALL) | \
 	  xargs -P $(PARALLEL_JOBS) -I{} $(BATSMAN_RUN_TESTS) --os {} --parallel
+
+# ---------------------------------------------------------------------------
+# Image cleanup targets
+# ---------------------------------------------------------------------------
+# Known batsman OS suffixes for safe matching (avoids false positives)
+_BATSMAN_OS_RE := debian12|centos[67]|rocky[89]|rocky10|ubuntu1204|ubuntu2004|ubuntu2404
+
+.PHONY: clean clean-all clean-dangling
+
+clean:
+	@echo "=== Removing $(BATSMAN_PROJECT) images ==="
+	@docker images --format '{{.Repository}}:{{.Tag}}' | \
+	  grep -E '^$(BATSMAN_PROJECT)-(test|base)-' | \
+	  while read -r img; do echo "  Removing $$img"; docker rmi "$$img" 2>/dev/null || true; done
+	@docker image prune -f >/dev/null 2>&1 || true
+
+clean-all:
+	@echo "=== Removing all batsman project images ==="
+	@docker images --format '{{.Repository}}:{{.Tag}}' | \
+	  grep -E '^[a-z0-9_]+-test-($(_BATSMAN_OS_RE))$$' | \
+	  while read -r img; do echo "  Removing $$img"; docker rmi "$$img" 2>/dev/null || true; done
+	@docker images --format '{{.Repository}}:{{.Tag}}' | \
+	  grep -E '^[a-z0-9_]+-base-($(_BATSMAN_OS_RE))$$' | \
+	  while read -r img; do echo "  Removing $$img"; docker rmi "$$img" 2>/dev/null || true; done
+	@docker image prune -f >/dev/null 2>&1 || true
+
+clean-dangling:
+	docker image prune -f
