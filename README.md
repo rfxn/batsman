@@ -346,6 +346,19 @@ jobs:
 
 ## Common Use Cases
 
+### Self-Tests
+
+batsman includes its own test suite that validates the orchestration engine.
+It bootstraps itself — the engine builds a Docker image from its own base
+Dockerfiles, copies its library into the container, and runs BATS tests
+against it. Unit tests cover argument parsing, variable validation, variant
+mapping, parallel distribution, and file discovery.
+
+```bash
+make -C tests test            # parallel (default)
+make -C tests test-verbose    # pretty output (sequential)
+```
+
 ### Make Targets
 
 | Target | Description |

@@ -32,6 +32,9 @@ https://github.com/rfxn/batsman
       addition to standard OS targets
 [Fix] CI workflow: JUnit summary step tolerates missing XML attributes
       (errors, skipped) — grep failures no longer kill the step under set -e
+[New] Self-test suite — batsman tests itself via self-bootstrap; unit tests
+      cover argument parsing, variable validation, variant mapping, parallel
+      distribution, and file discovery (74 tests across 4 test files)
 
 - 1.0.1 | Feb 27 2026:
 [Fix] dockerfiles: Rocky 10 base image name rockylinux:10 → rockylinux/rockylinux:10
