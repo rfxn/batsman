@@ -7,6 +7,10 @@
       tagging, build error paths, three cleanup modes, variant mapping
       in clean, and execution mode dispatch via docker stub pattern
       (F-020, F-021, F-047)
+[New] 7 new self-tests for install-bats.sh — validates SHA256 mismatch
+      detection, TLS fallback mode routing (modes 0/1/2), unknown
+      TLS_FALLBACK error, default version values, and complete three-
+      library install flow via mock command pattern (F-024)
 [New] install-bats.sh: SHA256 checksum verification for all three pinned
       tarballs (bats-core, bats-support, bats-assert) — download integrity
       backstop compensating for disabled TLS verification on legacy OS
