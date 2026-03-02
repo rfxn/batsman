@@ -302,6 +302,9 @@ jobs:
 | `BATS_VERSION` | `1.13.0` | bats-core version |
 | `BATS_SUPPORT_VERSION` | `0.3.0` | bats-support version |
 | `BATS_ASSERT_VERSION` | `2.1.0` | bats-assert version |
+| `BATS_CORE_SHA256` | *(matches pinned version)* | SHA256 checksum for bats-core tarball |
+| `BATS_SUPPORT_SHA256` | *(matches pinned version)* | SHA256 checksum for bats-support tarball |
+| `BATS_ASSERT_SHA256` | *(matches pinned version)* | SHA256 checksum for bats-assert tarball |
 | `TLS_FALLBACK` | `0` | TLS mode: 0=standard wget, 1=wget --no-check-certificate with curl fallback, 2=curl primary with wget fallback |
 
 ### run-tests-core.sh Configuration Variables

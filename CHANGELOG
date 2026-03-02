@@ -3,6 +3,9 @@ Copyright (C) 2002-2026 R-fx Networks <proj@rfxn.com>
 https://github.com/rfxn/batsman
 
 - 1.0.3 | Mar 02 2026:
+[New] install-bats.sh: SHA256 checksum verification for all three pinned
+      tarballs (bats-core, bats-support, bats-assert) — download integrity
+      backstop compensating for disabled TLS verification on legacy OS
 [Change] Demote default parallelism from nproc*2 to nproc for both intra-OS
       container count (run-tests-core.sh) and cross-OS job count
       (Makefile.tests PARALLEL_JOBS) — prevents compounding (nproc*2)²
