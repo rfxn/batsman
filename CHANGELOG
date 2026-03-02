@@ -6,6 +6,11 @@ https://github.com/rfxn/batsman
 [Fix] Add standard copyright headers to test suite files — Makefile,
       Dockerfile, and all five .bats files now carry rfxn copyright and
       GPL v2 license header (F-050)
+[New] 19 new self-tests for batsman_build(), batsman_clean(), and
+      batsman_run() routing — validates Dockerfile resolution, image
+      tagging, build error paths, three cleanup modes, variant mapping
+      in clean, and execution mode dispatch via docker stub pattern
+      (F-020, F-021, F-047)
 [New] install-bats.sh: SHA256 checksum verification for all three pinned
       tarballs (bats-core, bats-support, bats-assert) — download integrity
       backstop compensating for disabled TLS verification on legacy OS
