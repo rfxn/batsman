@@ -53,11 +53,21 @@ https://github.com/rfxn/batsman
       where GNU nproc is unavailable (F-011)
 [New] 2 new self-tests validating _batsman_done flag behavior for --help and
       --version direct-call safety (95 total)
+[Fix] Help text: document --parallel forces tap formatter (F-016); add -h
+      short flag (F-044); document --parallel 0 = auto-detect (F-045); add
+      CLI overrides env var precedence for --timeout and --report-dir (F-046)
+[Fix] README: fix TLS fallback description to reflect OS-specific ordering
+      instead of describing only mode 2 (F-031); add PARALLEL_JOBS to
+      Makefile.tests config reference (F-017); add formatter restriction
+      note to Parallel Test Orchestration section (F-016); add CLI > env var
+      precedence notes for BATSMAN_TEST_TIMEOUT and BATSMAN_REPORT_DIR (F-046)
+[Fix] CHANGELOG: clarify BATS Bash floor 3.2+ vs batsman requirement of
+      4.1+/CentOS 6 to avoid misreading project minimum (F-042)
 
 - 1.0.2 | Feb 28 2026:
 [Change] BATS version bump 1.11.0 → 1.13.0 — unlocks --abort (fail-fast),
       --negative-filter, BATS_TEST_TIMEOUT bug fixes, JUnit XML fixes;
-      Bash floor remains 3.2+ (CentOS 6 compatible)
+      BATS Bash floor remains 3.2+ (batsman requires 4.1+/CentOS 6)
 [New] --version CLI option and BATSMAN_VERSION variable — consumer projects
       and CI can query the batsman version programmatically
 [New] --timeout SECS CLI option and BATSMAN_TEST_TIMEOUT env var for per-test

@@ -59,16 +59,18 @@ Usage: $0 [OPTIONS] [BATS_ARGS...]
 
 Options:
   --os OS           Target OS (default: ${BATSMAN_DEFAULT_OS:-debian12})
-  --parallel [N]    Run test files in N parallel containers (default: nproc)
+  --parallel [N]    Run test files in N parallel containers (default: nproc;
+                    0 = auto-detect). Forces tap formatter for aggregation.
   --filter PATTERN  Filter tests by name (passed to bats --filter)
   --filter-tags TAG Filter tests by tag (comma-separated, ! to negate)
   --formatter FMT   BATS output formatter: tap (default), pretty
-  --timeout SECS    Per-test timeout in seconds (passed as BATS_TEST_TIMEOUT)
+                    Ignored in --parallel mode (tap required for aggregation)
+  --timeout SECS    Per-test timeout in seconds (overrides BATSMAN_TEST_TIMEOUT)
   --abort           Stop on first test failure (requires BATS 1.13.0+)
-  --report-dir DIR  Write JUnit XML reports to DIR on the host
+  --report-dir DIR  Write JUnit XML reports to DIR (overrides BATSMAN_REPORT_DIR)
   --clean           Remove project images for the target OS after test run
   --version         Show batsman version and exit
-  --help            Show this help
+  --help, -h        Show this help
 
 Any remaining arguments are passed directly to bats.
 Specific test file paths bypass parallel mode.

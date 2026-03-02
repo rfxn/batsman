@@ -96,6 +96,9 @@ project images rebuild only when project code changes.
 - **Named containers:** Each container gets a deterministic name
   (`<project>-<os>-<pid>-g<N>`) for easy debugging. Containers are cleaned up
   on exit, including on `SIGINT`/`SIGTERM`.
+- **Formatter restriction:** Parallel mode forces `tap` formatter for TAP
+  stream aggregation. The `--formatter` option applies only to sequential and
+  direct modes. Use `make test-verbose` (sequential) for pretty-formatted output.
 - **Sequential fallback:** When `--parallel` is not passed, tests run in a
   single container.
 
@@ -167,9 +170,10 @@ compatibility regressions.
 
 **Deep Legacy** — CentOS 6 (Bash 4.1, kernel 2.6.32) and Ubuntu 12.04 (Bash
 4.2). These define the portability floor:
-- `wget` may not support TLS 1.2+ — `install-bats.sh` provides a TLS fallback
-  mode using `curl -sSL -k` as primary with `wget --no-check-certificate` as
-  secondary.
+- `wget` may not support TLS 1.2+ — `install-bats.sh` provides TLS fallback
+  modes using `wget --no-check-certificate` and `curl -sSL -k` with
+  OS-specific ordering (see `TLS_FALLBACK` in Configuration Reference).
+  SHA256 checksums verify download integrity regardless of TLS mode.
 - EOL repositories: `vault.centos.org` for CentOS 6, `old-releases.ubuntu.com`
   for Ubuntu 12.04.
 - No systemd — SysV init only.
@@ -320,8 +324,8 @@ jobs:
 | `BATSMAN_CONTAINER_TEST_PATH` | yes | Test directory path inside container |
 | `BATSMAN_SUPPORTED_OS` | yes | Space-separated list of supported OS targets |
 | `BATSMAN_BASE_OS_MAP` | no | Variant-to-base mappings (e.g. `"yara-x=debian12"`) |
-| `BATSMAN_TEST_TIMEOUT` | no | Per-test timeout in seconds (passed as `BATS_TEST_TIMEOUT`) |
-| `BATSMAN_REPORT_DIR` | no | Host directory for JUnit XML reports (passed as `--report-dir`) |
+| `BATSMAN_TEST_TIMEOUT` | no | Per-test timeout in seconds; overridden by `--timeout` CLI flag |
+| `BATSMAN_REPORT_DIR` | no | Host directory for JUnit XML reports; overridden by `--report-dir` CLI flag |
 
 ### Makefile.tests Variables
 
@@ -334,6 +338,7 @@ jobs:
 | `BATSMAN_OS_ALL` | yes | Combined full OS list |
 | `BATSMAN_RUN_TESTS` | yes | Path to project run-tests.sh |
 | `BATSMAN_PROJECT` | no* | Project name for image tags (required for `clean` targets) |
+| `PARALLEL_JOBS` | no | Cross-OS parallel job count for `xargs -P` (default: `nproc`; override via `make ... PARALLEL_JOBS=N`) |
 
 ### CI Workflow Inputs
 
