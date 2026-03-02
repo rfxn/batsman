@@ -1,5 +1,7 @@
 #!/usr/bin/env bats
 # 01-version.bats — Version, source guard, and --help/--version tests
+# Copyright (C) 2002-2026 R-fx Networks <proj@rfxn.com>
+# GNU GPL v2 — see LICENSE
 
 load helpers/batsman-common
 

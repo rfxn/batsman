@@ -1,3 +1,7 @@
+# batsman — self-test Makefile
+# Copyright (C) 2002-2026 R-fx Networks <proj@rfxn.com>
+# GNU GPL v2 — see LICENSE
+
 BATSMAN_OS_MODERN := debian12
 BATSMAN_OS_LEGACY :=
 BATSMAN_OS_DEEP   :=

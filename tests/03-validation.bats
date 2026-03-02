@@ -1,5 +1,7 @@
 #!/usr/bin/env bats
 # 03-validation.bats — Required variable validation, variant mapping, Dockerfile paths
+# Copyright (C) 2002-2026 R-fx Networks <proj@rfxn.com>
+# GNU GPL v2 — see LICENSE
 # shellcheck disable=SC2154,SC2034
 
 load helpers/batsman-common

@@ -1,4 +1,7 @@
 - 1.0.3 | Mar 02 2026:
+[Fix] Add standard copyright headers to test suite files — Makefile,
+      Dockerfile, and all five .bats files now carry rfxn copyright and
+      GPL v2 license header (F-050)
 [New] install-bats.sh: SHA256 checksum verification for all three pinned
       tarballs (bats-core, bats-support, bats-assert) — download integrity
       backstop compensating for disabled TLS verification on legacy OS

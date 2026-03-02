@@ -1,5 +1,7 @@
 #!/usr/bin/env bats
 # 02-parse-args.bats — CLI argument parsing tests (highest-value coverage)
+# Copyright (C) 2002-2026 R-fx Networks <proj@rfxn.com>
+# GNU GPL v2 — see LICENSE
 # shellcheck disable=SC2154,SC2034
 
 load helpers/batsman-common

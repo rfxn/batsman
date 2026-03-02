@@ -1,3 +1,6 @@
+# batsman — self-test Dockerfile
+# Copyright (C) 2002-2026 R-fx Networks <proj@rfxn.com>
+# GNU GPL v2 — see LICENSE
 ARG BASE_IMAGE=batsman-base-debian12
 FROM ${BASE_IMAGE}
 COPY lib/ /opt/batsman/lib/
