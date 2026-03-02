@@ -69,26 +69,32 @@ test-all:
 
 # ---------------------------------------------------------------------------
 # Cross-OS parallel targets (multiple OS tests running concurrently)
+# xargs -P returns exit 123 when any child fails but doesn't identify which
+# OS target failed. The sh -c wrapper emits a failure banner to stderr.
 # ---------------------------------------------------------------------------
 .PHONY: test-modern-parallel test-legacy-parallel test-deep-legacy-parallel test-all-parallel
 
 test-modern-parallel:
 	printf '%s\n' $(BATSMAN_OS_MODERN) | \
-	  xargs -P $(PARALLEL_JOBS) -I{} $(BATSMAN_RUN_TESTS) --os {} --parallel
+	  xargs -P $(PARALLEL_JOBS) -I{} sh -c \
+	    '$(BATSMAN_RUN_TESTS) --os {} --parallel || { echo "*** FAILED: {} ***" >&2; exit 1; }'
 
 test-legacy-parallel:
 	printf '%s\n' $(BATSMAN_OS_LEGACY) | \
-	  xargs -P $(PARALLEL_JOBS) -I{} $(BATSMAN_RUN_TESTS) --os {} --parallel
+	  xargs -P $(PARALLEL_JOBS) -I{} sh -c \
+	    '$(BATSMAN_RUN_TESTS) --os {} --parallel || { echo "*** FAILED: {} ***" >&2; exit 1; }'
 
 test-deep-legacy-parallel:
 	@if [ -n "$(BATSMAN_OS_DEEP)" ]; then \
 		printf '%s\n' $(BATSMAN_OS_DEEP) | \
-		xargs -P $(PARALLEL_JOBS) -I{} $(BATSMAN_RUN_TESTS) --os {} --parallel; \
+		xargs -P $(PARALLEL_JOBS) -I{} sh -c \
+		  '$(BATSMAN_RUN_TESTS) --os {} --parallel || { echo "*** FAILED: {} ***" >&2; exit 1; }'; \
 	fi
 
 test-all-parallel:
 	printf '%s\n' $(BATSMAN_OS_ALL) | \
-	  xargs -P $(PARALLEL_JOBS) -I{} $(BATSMAN_RUN_TESTS) --os {} --parallel
+	  xargs -P $(PARALLEL_JOBS) -I{} sh -c \
+	    '$(BATSMAN_RUN_TESTS) --os {} --parallel || { echo "*** FAILED: {} ***" >&2; exit 1; }'
 
 # ---------------------------------------------------------------------------
 # Image cleanup targets
