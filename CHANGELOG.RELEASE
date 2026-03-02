@@ -2,6 +2,9 @@
 [New] install-bats.sh: SHA256 checksum verification for all three pinned
       tarballs (bats-core, bats-support, bats-assert) — download integrity
       backstop compensating for disabled TLS verification on legacy OS
+[New] README: migration guide section with version-specific upgrade notes
+      for consumers — covers BATS 1.13.0 run-variable unset breaking change,
+      SHA256 checksum verification, parallelism changes, CLI strictness
 [Change] Demote default parallelism from nproc*2 to nproc for both intra-OS
       container count (run-tests-core.sh) and cross-OS job count
       (Makefile.tests PARALLEL_JOBS) — prevents compounding (nproc*2)²

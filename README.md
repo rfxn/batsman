@@ -513,6 +513,133 @@ In CI workflow callers, reference the same tag:
 uses: rfxn/batsman/.github/workflows/test.yml@v1.0.2
 ```
 
+## Migration Guide
+
+Upgrade notes for consumer projects. Newest version first.
+
+### Upgrading to v1.0.3
+
+**SHA256 checksum verification (transparent)**
+
+`install-bats.sh` now verifies SHA256 checksums for all three downloaded
+tarballs (bats-core, bats-support, bats-assert) after download and before
+extraction. This is transparent for standard usage — the checksums match the
+pinned versions shipped with batsman. If you override `BATS_VERSION`,
+`BATS_SUPPORT_VERSION`, or `BATS_ASSERT_VERSION` via environment variables,
+you must also set the corresponding `BATS_CORE_SHA256`, `BATS_SUPPORT_SHA256`,
+or `BATS_ASSERT_SHA256` to match your custom tarballs. A mismatch aborts the
+build with expected vs actual hash output.
+
+**Default parallelism reduced**
+
+Default parallel container count changed from `nproc*2` to `nproc` — both for
+intra-OS containers (`run-tests-core.sh`) and cross-OS parallel jobs
+(`Makefile.tests PARALLEL_JOBS`). This prevents compounding container storms
+on `test-all-parallel` targets. To restore the previous behavior, pass an
+explicit count:
+
+```bash
+# Intra-OS: override via CLI
+./tests/run-tests.sh --parallel $(($(nproc) * 2))
+
+# Cross-OS: override via Make variable
+make -C tests test-all-parallel PARALLEL_JOBS=$(($(nproc) * 2))
+```
+
+**CLI argument parsing stricter**
+
+Flags that require a value (`--os`, `--filter`, `--filter-tags`, `--formatter`,
+`--timeout`, `--report-dir`) now error when the trailing argument is missing.
+`--timeout` rejects non-numeric values. Unknown `--flags` emit a warning
+instead of silently routing to direct mode. These changes only affect incorrect
+invocations — correct usage is unaffected.
+
+### Upgrading to v1.0.2
+
+**BATS 1.13.0 run-variable unset — BREAKING CHANGE**
+
+BATS was upgraded from 1.11.0 to 1.13.0. Starting with BATS 1.12.0, the `run`
+command unsets `$output`, `$lines`, `$stderr`, and `$stderr_lines` at the start
+of each invocation. Tests that rely on stale values from a previous `run` call
+will silently produce incorrect results.
+
+**Broken pattern:**
+```bash
+@test "example" {
+    run some_command
+    run another_command
+    # BUG: $output now contains only another_command's output
+    # In BATS < 1.12.0, if another_command produced no output,
+    # $output would still hold some_command's output (crosstalk)
+    assert_output --partial "from some_command"  # FAILS
+}
+```
+
+**Fixed pattern:**
+```bash
+@test "example" {
+    run some_command
+    local first_output="$output"
+    run another_command
+    assert_output --partial "from another_command"
+    [[ "$first_output" == *"from some_command"* ]]
+}
+```
+
+Audit your existing test suites for this pattern:
+```bash
+grep -n 'run ' tests/*.bats | grep -B1 'assert_output\|assert_line\|\$output\|\$lines'
+```
+
+**New CLI options available**
+
+v1.0.2 added `--timeout`, `--abort`, `--filter-tags`, `--report-dir`, `--clean`,
+and `--version`. See the [Script CLI](#script-cli) section for usage.
+
+**CI workflow changes**
+
+The reusable workflow gained `test-path` (default `/opt/tests`), `reports`
+(default `true`), and `concurrency-group` inputs. JUnit XML reports are uploaded
+as artifacts with 14-day retention and written to the job summary.
+
+Update your CI caller reference:
+```yaml
+# Before
+uses: rfxn/batsman/.github/workflows/test.yml@v1.0.1
+
+# After
+uses: rfxn/batsman/.github/workflows/test.yml@v1.0.2
+```
+
+Update your submodule pin:
+```bash
+cd tests/infra
+git fetch origin --tags --force
+git checkout v1.0.2
+cd ../..
+git add tests/infra
+git commit -m "Pin batsman submodule to v1.0.2"
+```
+
+### Upgrading to v1.0.1
+
+**Variant mapping (new capability)**
+
+v1.0.1 introduced `BATSMAN_BASE_OS_MAP` for mapping non-OS variant names to
+base OS images (e.g., `"yara-x=debian12"`). No action required unless you want
+to use this feature.
+
+**Makefile include and CI workflow introduced**
+
+v1.0.1 added `include/Makefile.tests` and `.github/workflows/test.yml`. Projects
+upgrading from v1.0.0 need to create a `tests/Makefile` and CI workflow caller.
+See the [Integration Guide](#integration-guide) section for templates.
+
+**Rocky 10 image name fix (transparent)**
+
+The Rocky 10 base image was corrected from `rockylinux:10` to
+`rockylinux/rockylinux:10`. No action required.
+
 ## Consumer Projects
 
 | Project | Docker Flags | Container Test Path | OS Targets | Notable | Repository |
