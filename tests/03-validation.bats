@@ -87,54 +87,36 @@ teardown() {
 }
 
 # ---------------------------------------------------------------------------
-# Variant mapping (BATSMAN_BASE_OS_MAP)
+# Variant mapping (_batsman_resolve_base_os)
 # ---------------------------------------------------------------------------
-# The mapping logic is in batsman_build() and batsman_clean(). Since those
-# require Docker, we test the mapping logic by replicating the exact loop
-# pattern from batsman_build() — same code path, no Docker dependency.
-
-_resolve_base_os() {
-    local os="$1"
-    local base_os="$os"
-    if [ -n "${BATSMAN_BASE_OS_MAP:-}" ]; then
-        local _map_entry
-        for _map_entry in $BATSMAN_BASE_OS_MAP; do
-            if [ "${_map_entry%%=*}" = "$os" ]; then
-                base_os="${_map_entry#*=}"
-                break
-            fi
-        done
-    fi
-    echo "$base_os"
-}
 
 @test "variant mapping: yara-x=debian12 resolves correctly" {
     BATSMAN_BASE_OS_MAP="yara-x=debian12"
-    run _resolve_base_os "yara-x"
+    run _batsman_resolve_base_os "yara-x"
     [ "$output" = "debian12" ]
 }
 
 @test "variant mapping: no match returns identity" {
     BATSMAN_BASE_OS_MAP="yara-x=debian12"
-    run _resolve_base_os "rocky9"
+    run _batsman_resolve_base_os "rocky9"
     [ "$output" = "rocky9" ]
 }
 
 @test "variant mapping: empty map returns identity" {
     BATSMAN_BASE_OS_MAP=""
-    run _resolve_base_os "debian12"
+    run _batsman_resolve_base_os "debian12"
     [ "$output" = "debian12" ]
 }
 
 @test "variant mapping: multiple mappings picks correct one" {
     BATSMAN_BASE_OS_MAP="yara-x=debian12 custom=rocky9"
-    run _resolve_base_os "custom"
+    run _batsman_resolve_base_os "custom"
     [ "$output" = "rocky9" ]
 }
 
 @test "variant mapping: first match wins" {
     BATSMAN_BASE_OS_MAP="yara-x=debian12 yara-x=rocky9"
-    run _resolve_base_os "yara-x"
+    run _batsman_resolve_base_os "yara-x"
     [ "$output" = "debian12" ]
 }
 

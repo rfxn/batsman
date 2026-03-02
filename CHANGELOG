@@ -25,7 +25,7 @@ https://github.com/rfxn/batsman
       setting explicit_files — previously they silently routed to direct mode
 [New] End-of-options (--) support in argument parser — all arguments after --
       are treated as file operands regardless of prefix
-[New] 20 new self-tests for CLI argument parsing hardening (94 total)
+[New] 20 new self-tests for CLI argument parsing hardening (93 total)
 [Fix] install-bats.sh: add set -o pipefail — download failures in pipe to tar
       are no longer masked by tar's exit code
 [Fix] install-bats.sh: refactor fetch_tarball() from stdout pipe to file-based
@@ -36,6 +36,13 @@ https://github.com/rfxn/batsman
       Docker builds indefinitely
 [Fix] README: correct container naming pattern from <project>-test-<os>-<slot>
       to <project>-<os>-<pid>-g<N> matching actual code
+[Change] Extract variant-mapping loop from batsman_build() and batsman_clean()
+      into standalone _batsman_resolve_base_os() function — eliminates three
+      copies of identical logic (two production, one test)
+[Fix] Variant mapping tests now call production _batsman_resolve_base_os()
+      instead of test-local reimplementation (F-022)
+[Fix] Remove duplicate "all 9 base Dockerfiles exist" test from
+      01-version.bats — canonical copy retained in 03-validation.bats (F-048)
 
 - 1.0.2 | Feb 28 2026:
 [Change] BATS version bump 1.11.0 → 1.13.0 — unlocks --abort (fail-fast),

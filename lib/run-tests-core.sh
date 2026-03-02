@@ -230,21 +230,33 @@ batsman_parse_args() {
 }
 
 # ---------------------------------------------------------------------------
-# batsman_build — Two-phase Docker build (base from infra, project from tests/)
+# _batsman_resolve_base_os — Resolve variant OS to base OS via BATSMAN_BASE_OS_MAP
+#
+# Usage: _batsman_resolve_base_os <os_name>
+# Outputs the resolved base OS name (identity if no mapping found).
 # ---------------------------------------------------------------------------
-batsman_build() {
-    # Allow projects to map variant names to base OS targets
-    # e.g., BATSMAN_BASE_OS_MAP="yara-x=debian12" means --os yara-x uses debian12 base
-    local base_os="$_batsman_os"
+_batsman_resolve_base_os() {
+    local os="$1"
+    local base_os="$os"
     if [ -n "${BATSMAN_BASE_OS_MAP:-}" ]; then
         local _map_entry
         for _map_entry in $BATSMAN_BASE_OS_MAP; do
-            if [ "${_map_entry%%=*}" = "$_batsman_os" ]; then
+            if [ "${_map_entry%%=*}" = "$os" ]; then
                 base_os="${_map_entry#*=}"
                 break
             fi
         done
     fi
+    echo "$base_os"
+}
+
+# ---------------------------------------------------------------------------
+# batsman_build — Two-phase Docker build (base from infra, project from tests/)
+# ---------------------------------------------------------------------------
+batsman_build() {
+    # Resolve variant OS to base (e.g., yara-x -> debian12)
+    local base_os
+    base_os="$(_batsman_resolve_base_os "$_batsman_os")"
 
     local base_dockerfile="$BATSMAN_INFRA_DIR/dockerfiles/Dockerfile.${base_os}"
     local base_tag="${BATSMAN_PROJECT}-base-${base_os}"
@@ -324,18 +336,9 @@ batsman_clean() {
     else
         echo "=== Removing ${BATSMAN_PROJECT} images for ${_batsman_os} ==="
         local test_img="${BATSMAN_PROJECT}-test-${_batsman_os}"
-        local base_img="${BATSMAN_PROJECT}-base-${_batsman_os}"
-
-        # Resolve base OS for variants (same logic as batsman_build)
-        if [ -n "${BATSMAN_BASE_OS_MAP:-}" ]; then
-            local _map_entry
-            for _map_entry in $BATSMAN_BASE_OS_MAP; do
-                if [ "${_map_entry%%=*}" = "$_batsman_os" ]; then
-                    base_img="${BATSMAN_PROJECT}-base-${_map_entry#*=}"
-                    break
-                fi
-            done
-        fi
+        local base_os
+        base_os="$(_batsman_resolve_base_os "$_batsman_os")"
+        local base_img="${BATSMAN_PROJECT}-base-${base_os}"
 
         echo "  Removing $test_img"
         docker rmi "$test_img" 2>/dev/null || true

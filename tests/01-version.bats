@@ -77,15 +77,3 @@ teardown() {
     run batsman_parse_args --help
     [[ "$output" == *"debian12"* ]]
 }
-
-# ---------------------------------------------------------------------------
-# Dockerfile inventory
-# ---------------------------------------------------------------------------
-
-@test "all 9 base Dockerfiles exist" {
-    local os
-    for os in debian12 centos6 centos7 rocky8 rocky9 rocky10 \
-              ubuntu1204 ubuntu2004 ubuntu2404; do
-        [ -f "$BATSMAN_DOCKERFILES/Dockerfile.$os" ]
-    done
-}
