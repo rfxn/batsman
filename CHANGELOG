@@ -51,6 +51,9 @@ https://github.com/rfxn/batsman
 [Fix] Add nproc fallback chain (nproc || sysctl -n hw.logicalcpu || echo 1)
       in run-tests-core.sh and Makefile.tests — enables macOS host support
       where GNU nproc is unavailable (F-011)
+[Fix] Makefile.tests clean-all regex: add hyphen to character class so
+      hyphenated project names (e.g., my-project) are matched for image
+      cleanup (F-010)
 [New] 12 new self-tests for execution mode functions (batsman_run_direct,
       batsman_run_sequential, batsman_run_parallel) — validates Docker command
       construction, timeout/report handling, container naming, TAP counting,

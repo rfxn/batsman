@@ -110,10 +110,10 @@ clean:
 clean-all:
 	@echo "=== Removing all batsman project images ==="
 	@docker images --format '{{.Repository}}:{{.Tag}}' | \
-	  grep -E '^[a-z0-9_]+-test-[a-z]' | \
+	  grep -E '^[a-z0-9_-]+-test-[a-z]' | \
 	  while read -r img; do echo "  Removing $$img"; docker rmi "$$img" 2>/dev/null || true; done
 	@docker images --format '{{.Repository}}:{{.Tag}}' | \
-	  grep -E '^[a-z0-9_]+-base-[a-z]' | \
+	  grep -E '^[a-z0-9_-]+-base-[a-z]' | \
 	  while read -r img; do echo "  Removing $$img"; docker rmi "$$img" 2>/dev/null || true; done
 	@docker image prune -f >/dev/null 2>&1 || true
 
