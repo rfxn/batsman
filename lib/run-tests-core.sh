@@ -99,6 +99,10 @@ batsman_parse_args() {
     while [ $# -gt 0 ]; do
         case "$1" in
             --os)
+                if [ $# -lt 2 ]; then
+                    echo "Error: --os requires a value" >&2
+                    return 1
+                fi
                 shift
                 _batsman_os="$1"
                 ;;
@@ -111,18 +115,34 @@ batsman_parse_args() {
                 fi
                 ;;
             --filter)
+                if [ $# -lt 2 ]; then
+                    echo "Error: --filter requires a value" >&2
+                    return 1
+                fi
                 shift
                 _batsman_bats_args+=("--filter" "$1")
                 ;;
             --filter-tags)
+                if [ $# -lt 2 ]; then
+                    echo "Error: --filter-tags requires a value" >&2
+                    return 1
+                fi
                 shift
                 _batsman_bats_args+=("--filter-tags" "$1")
                 ;;
             --formatter)
+                if [ $# -lt 2 ]; then
+                    echo "Error: --formatter requires a value" >&2
+                    return 1
+                fi
                 shift
                 _batsman_formatter="$1"
                 ;;
             --timeout)
+                if [ $# -lt 2 ]; then
+                    echo "Error: --timeout requires a value" >&2
+                    return 1
+                fi
                 shift
                 _batsman_test_timeout="$1"
                 ;;
@@ -130,6 +150,10 @@ batsman_parse_args() {
                 _batsman_abort=1
                 ;;
             --report-dir)
+                if [ $# -lt 2 ]; then
+                    echo "Error: --report-dir requires a value" >&2
+                    return 1
+                fi
                 shift
                 _batsman_report_dir="$1"
                 ;;
@@ -143,9 +167,23 @@ batsman_parse_args() {
             --help|-h)
                 batsman_usage 0
                 ;;
+            --)
+                shift
+                while [ $# -gt 0 ]; do
+                    _batsman_bats_args+=("$1")
+                    _batsman_explicit_files=1
+                    shift
+                done
+                break
+                ;;
             *)
-                _batsman_bats_args+=("$1")
-                _batsman_explicit_files=1
+                if [[ "$1" == --* ]]; then
+                    echo "Warning: unknown option '$1' -- passing to bats" >&2
+                    _batsman_bats_args+=("$1")
+                else
+                    _batsman_bats_args+=("$1")
+                    _batsman_explicit_files=1
+                fi
                 ;;
         esac
         shift
@@ -174,6 +212,15 @@ batsman_parse_args() {
     # Resolve report dir: CLI --report-dir takes precedence over env var
     if [ -z "$_batsman_report_dir" ] && [ -n "${BATSMAN_REPORT_DIR:-}" ]; then
         _batsman_report_dir="$BATSMAN_REPORT_DIR"
+    fi
+
+    # Validate timeout is a positive integer (covers both CLI and env var)
+    if [ -n "$_batsman_test_timeout" ]; then
+        local _num_pat='^[0-9]+$'
+        if ! [[ "$_batsman_test_timeout" =~ $_num_pat ]]; then
+            echo "Error: timeout must be a positive integer, got '$_batsman_test_timeout'" >&2
+            return 1
+        fi
     fi
 
     # Prepend --abort to bats args if requested
@@ -528,8 +575,8 @@ batsman_run() {
     done
     [ "$missing" -eq 1 ] && return 1
 
-    batsman_parse_args "$@"
-    batsman_build
+    batsman_parse_args "$@" || return $?
+    batsman_build || return $?
 
     local test_rc=0
     if [ "$_batsman_explicit_files" -eq 1 ]; then

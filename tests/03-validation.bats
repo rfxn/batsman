@@ -74,6 +74,18 @@ teardown() {
     [[ "$output" == *"BATSMAN_PROJECT"* ]]
 }
 
+@test "batsman_run propagates parse_args failure (F-001)" {
+    run batsman_run --os invalid_os
+    [ "$status" -ne 0 ]
+    [[ "$output" == *"Unsupported"* ]]
+}
+
+@test "batsman_run propagates missing-value failure" {
+    run batsman_run --timeout
+    [ "$status" -ne 0 ]
+    [[ "$output" == *"requires"* ]]
+}
+
 # ---------------------------------------------------------------------------
 # Variant mapping (BATSMAN_BASE_OS_MAP)
 # ---------------------------------------------------------------------------

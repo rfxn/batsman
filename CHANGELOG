@@ -7,6 +7,19 @@ https://github.com/rfxn/batsman
       container count (run-tests-core.sh) and cross-OS job count
       (Makefile.tests PARALLEL_JOBS) — prevents compounding (nproc*2)²
       container storms on test-all-parallel targets
+[Fix] CLI flags requiring a value (--os, --filter, --filter-tags, --formatter,
+      --timeout, --report-dir) now error on missing trailing argument instead
+      of consuming the next flag or setting an empty value
+[Fix] batsman_run() now checks batsman_parse_args and batsman_build return
+      codes — parse or build failures propagate immediately instead of
+      continuing with undefined state
+[Fix] --timeout validates that value is a positive integer — rejects
+      non-numeric input from both CLI and BATSMAN_TEST_TIMEOUT env var
+[Change] Unknown --flags now emit a warning and pass through to bats without
+      setting explicit_files — previously they silently routed to direct mode
+[New] End-of-options (--) support in argument parser — all arguments after --
+      are treated as file operands regardless of prefix
+[New] 20 new self-tests for CLI argument parsing hardening (94 total)
 
 - 1.0.2 | Feb 28 2026:
 [Change] BATS version bump 1.11.0 → 1.13.0 — unlocks --abort (fail-fast),

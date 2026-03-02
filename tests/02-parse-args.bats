@@ -242,7 +242,7 @@ teardown() {
 # Explicit files (unknown args)
 # ---------------------------------------------------------------------------
 
-@test "unknown args added to bats_args with explicit_files=1" {
+@test "file path sets explicit_files=1" {
     batsman_parse_args /opt/tests/01-test.bats
     [ "$_batsman_explicit_files" -eq 1 ]
     [ "${_batsman_bats_args[0]}" = "/opt/tests/01-test.bats" ]
@@ -254,6 +254,133 @@ teardown() {
     [ "$_batsman_explicit_files" -eq 1 ]
     [ "${_batsman_bats_args[0]}" = "/opt/tests/01-test.bats" ]
 }
+
+@test "unknown --flag passes to bats_args without setting explicit_files" {
+    batsman_parse_args --unknown-flag 2>/dev/null
+    [ "$_batsman_explicit_files" -eq 0 ]
+    [ "${_batsman_bats_args[0]}" = "--unknown-flag" ]
+}
+
+@test "unknown --flag emits warning" {
+    run batsman_parse_args --unknown-flag
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"Warning"*"--unknown-flag"* ]]
+}
+
+@test "unknown --flag does not break other flags" {
+    batsman_parse_args --parallel --unknown-bats-opt 2>/dev/null
+    [ "$_batsman_parallel" -eq 1 ]
+    [ "${_batsman_bats_args[0]}" = "--unknown-bats-opt" ]
+    [ "$_batsman_explicit_files" -eq 0 ]
+}
+
+# ---------------------------------------------------------------------------
+# Missing value guards (F-002)
+# ---------------------------------------------------------------------------
+
+@test "--os without value returns error" {
+    run batsman_parse_args --os
+    [ "$status" -ne 0 ]
+    [[ "$output" == *"--os"*"requires"* ]]
+}
+
+@test "--filter without value returns error" {
+    run batsman_parse_args --filter
+    [ "$status" -ne 0 ]
+    [[ "$output" == *"--filter"*"requires"* ]]
+}
+
+@test "--filter-tags without value returns error" {
+    run batsman_parse_args --filter-tags
+    [ "$status" -ne 0 ]
+    [[ "$output" == *"--filter-tags"*"requires"* ]]
+}
+
+@test "--formatter without value returns error" {
+    run batsman_parse_args --formatter
+    [ "$status" -ne 0 ]
+    [[ "$output" == *"--formatter"*"requires"* ]]
+}
+
+@test "--timeout without value returns error" {
+    run batsman_parse_args --timeout
+    [ "$status" -ne 0 ]
+    [[ "$output" == *"--timeout"*"requires"* ]]
+}
+
+@test "--report-dir without value returns error" {
+    run batsman_parse_args --report-dir
+    [ "$status" -ne 0 ]
+    [[ "$output" == *"--report-dir"*"requires"* ]]
+}
+
+@test "--os at end of args is caught (not consumed by bottom shift)" {
+    run batsman_parse_args --parallel --os
+    [ "$status" -ne 0 ]
+    [[ "$output" == *"--os"*"requires"* ]]
+}
+
+# ---------------------------------------------------------------------------
+# Timeout numeric validation (F-004)
+# ---------------------------------------------------------------------------
+
+@test "--timeout with non-numeric value returns error" {
+    run batsman_parse_args --timeout abc
+    [ "$status" -ne 0 ]
+    [[ "$output" == *"positive integer"* ]]
+}
+
+@test "--timeout with flag-like value returns error" {
+    run batsman_parse_args --timeout --parallel
+    [ "$status" -ne 0 ]
+    [[ "$output" == *"positive integer"* ]]
+}
+
+@test "--timeout 0 is accepted" {
+    batsman_parse_args --timeout 0
+    [ "$_batsman_test_timeout" = "0" ]
+}
+
+@test "BATSMAN_TEST_TIMEOUT env with non-numeric value returns error" {
+    BATSMAN_TEST_TIMEOUT="abc"
+    run batsman_parse_args
+    [ "$status" -ne 0 ]
+    [[ "$output" == *"positive integer"* ]]
+}
+
+# ---------------------------------------------------------------------------
+# End-of-options (--)
+# ---------------------------------------------------------------------------
+
+@test "-- passes remaining args as file paths" {
+    batsman_parse_args -- /opt/tests/01-test.bats
+    [ "$_batsman_explicit_files" -eq 1 ]
+    [ "${_batsman_bats_args[0]}" = "/opt/tests/01-test.bats" ]
+}
+
+@test "-- with no remaining args is harmless" {
+    batsman_parse_args --
+    [ "$_batsman_explicit_files" -eq 0 ]
+    [ "${#_batsman_bats_args[@]}" -eq 0 ]
+}
+
+@test "-- prevents flag-like args from being parsed as options" {
+    batsman_parse_args -- --not-a-flag
+    [ "$_batsman_explicit_files" -eq 1 ]
+    [ "${_batsman_bats_args[0]}" = "--not-a-flag" ]
+    [ "$_batsman_parallel" -eq 0 ]
+}
+
+@test "flags before -- are parsed, args after are operands" {
+    batsman_parse_args --parallel -- /opt/tests/01-test.bats
+    [ "$_batsman_parallel" -eq 1 ]
+    [ "$_batsman_explicit_files" -eq 1 ]
+    [ "${_batsman_bats_args[0]}" = "/opt/tests/01-test.bats" ]
+}
+
+# ---------------------------------------------------------------------------
+# Combined flags
+# ---------------------------------------------------------------------------
 
 @test "all flags combined correctly" {
     batsman_parse_args --os rocky9 --parallel 4 --formatter pretty \
