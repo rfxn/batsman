@@ -43,6 +43,8 @@ https://github.com/rfxn/batsman
       instead of test-local reimplementation (F-022)
 [Fix] Remove duplicate "all 9 base Dockerfiles exist" test from
       01-version.bats — canonical copy retained in 03-validation.bats (F-048)
+[Fix] Version test extracts BATSMAN_VERSION from source file via grep instead
+      of hardcoding — eliminates manual test update on version bumps (F-049)
 
 - 1.0.2 | Feb 28 2026:
 [Change] BATS version bump 1.11.0 → 1.13.0 — unlocks --abort (fail-fast),

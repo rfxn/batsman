@@ -24,8 +24,12 @@ teardown() {
     [[ "$BATSMAN_VERSION" =~ $pattern ]]
 }
 
-@test "BATSMAN_VERSION matches expected 1.0.3" {
-    [ "$BATSMAN_VERSION" = "1.0.3" ]
+@test "BATSMAN_VERSION matches source file declaration" {
+    local src_version
+    src_version=$(grep -E '^BATSMAN_VERSION=' "$BATSMAN_LIB" | head -1 | \
+        sed 's/^BATSMAN_VERSION="//' | sed 's/"$//')
+    [ -n "$src_version" ]
+    [ "$BATSMAN_VERSION" = "$src_version" ]
 }
 
 # ---------------------------------------------------------------------------
