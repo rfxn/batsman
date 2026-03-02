@@ -30,7 +30,7 @@ fi
 # ---------------------------------------------------------------------------
 # Version
 # ---------------------------------------------------------------------------
-BATSMAN_VERSION="1.0.2"
+BATSMAN_VERSION="1.0.3"
 
 # ---------------------------------------------------------------------------
 # Internal state (set by batsman_parse_args)
@@ -58,7 +58,7 @@ Usage: $0 [OPTIONS] [BATS_ARGS...]
 
 Options:
   --os OS           Target OS (default: ${BATSMAN_DEFAULT_OS:-debian12})
-  --parallel [N]    Run test files in N parallel containers (default: nproc*2)
+  --parallel [N]    Run test files in N parallel containers (default: nproc)
   --filter PATTERN  Filter tests by name (passed to bats --filter)
   --filter-tags TAG Filter tests by tag (comma-separated, ! to negate)
   --formatter FMT   BATS output formatter: tap (default), pretty
@@ -361,7 +361,7 @@ batsman_run_parallel() {
     if [ "$_batsman_parallel_n" -gt 0 ]; then
         num_groups="$_batsman_parallel_n"
     else
-        num_groups=$(( $(nproc) * 2 ))
+        num_groups=$(nproc)
         [ "$num_groups" -lt 1 ] && num_groups=1
     fi
 

@@ -89,7 +89,7 @@ project images rebuild only when project code changes.
 `lib/run-tests-core.sh` is a sourced library that provides:
 
 - **Round-robin distribution:** `.bats` files are distributed across N Docker
-  containers (default: `nproc * 2`). Each container runs a subset of tests
+  containers (default: `nproc`). Each container runs a subset of tests
   independently.
 - **TAP aggregation:** Output from all containers is collected and merged into
   a single TAP stream.

@@ -24,8 +24,8 @@ teardown() {
     [[ "$BATSMAN_VERSION" =~ $pattern ]]
 }
 
-@test "BATSMAN_VERSION matches expected 1.0.2" {
-    [ "$BATSMAN_VERSION" = "1.0.2" ]
+@test "BATSMAN_VERSION matches expected 1.0.3" {
+    [ "$BATSMAN_VERSION" = "1.0.3" ]
 }
 
 # ---------------------------------------------------------------------------

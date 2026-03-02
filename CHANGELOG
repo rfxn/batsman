@@ -2,6 +2,12 @@ batsman — Shared BATS Test Infrastructure
 Copyright (C) 2002-2026 R-fx Networks <proj@rfxn.com>
 https://github.com/rfxn/batsman
 
+- 1.0.3 | Mar 02 2026:
+[Change] Demote default parallelism from nproc*2 to nproc for both intra-OS
+      container count (run-tests-core.sh) and cross-OS job count
+      (Makefile.tests PARALLEL_JOBS) — prevents compounding (nproc*2)²
+      container storms on test-all-parallel targets
+
 - 1.0.2 | Feb 28 2026:
 [Change] BATS version bump 1.11.0 → 1.13.0 — unlocks --abort (fail-fast),
       --negative-filter, BATS_TEST_TIMEOUT bug fixes, JUnit XML fixes;

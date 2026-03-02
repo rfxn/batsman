@@ -15,8 +15,8 @@
 #
 #   include infra/include/Makefile.tests
 
-# Cross-OS parallelism: 2x CPU cores, minimum 1
-PARALLEL_JOBS ?= $(shell echo $$(( $$(nproc) * 2 )) | awk '{ print ($$1 < 1) ? 1 : $$1 }')
+# Cross-OS parallelism: 1x CPU cores, minimum 1
+PARALLEL_JOBS ?= $(shell echo $$(nproc) | awk '{ print ($$1 < 1) ? 1 : $$1 }')
 
 # ---------------------------------------------------------------------------
 # Core targets (defined first so 'test' is the default goal)
