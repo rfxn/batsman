@@ -45,6 +45,14 @@ https://github.com/rfxn/batsman
       01-version.bats — canonical copy retained in 03-validation.bats (F-048)
 [Fix] Version test extracts BATSMAN_VERSION from source file via grep instead
       of hardcoding — eliminates manual test update on version bumps (F-049)
+[Fix] --help and --version now return instead of exit in sourced library —
+      prevents process termination when called from sourced context; adds
+      _batsman_done flag checked by batsman_run() for clean short-circuit (F-019)
+[Fix] Add nproc fallback chain (nproc || sysctl -n hw.logicalcpu || echo 1)
+      in run-tests-core.sh and Makefile.tests — enables macOS host support
+      where GNU nproc is unavailable (F-011)
+[New] 2 new self-tests validating _batsman_done flag behavior for --help and
+      --version direct-call safety (95 total)
 
 - 1.0.2 | Feb 28 2026:
 [Change] BATS version bump 1.11.0 → 1.13.0 — unlocks --abort (fail-fast),

@@ -67,6 +67,12 @@ teardown() {
     [[ "$output" == batsman* ]]
 }
 
+@test "--version sets _batsman_done flag and returns (no exit)" {
+    _batsman_done=0
+    batsman_parse_args --version
+    [ "$_batsman_done" -eq 1 ]
+}
+
 # ---------------------------------------------------------------------------
 # --help
 # ---------------------------------------------------------------------------
@@ -80,4 +86,10 @@ teardown() {
 @test "--help shows supported OS targets" {
     run batsman_parse_args --help
     [[ "$output" == *"debian12"* ]]
+}
+
+@test "--help sets _batsman_done flag and returns (no exit)" {
+    _batsman_done=0
+    batsman_parse_args --help
+    [ "$_batsman_done" -eq 1 ]
 }

@@ -46,6 +46,7 @@ _batsman_test_timeout=""
 _batsman_abort=0
 _batsman_report_dir=""
 _batsman_clean=0
+_batsman_done=0
 
 # ---------------------------------------------------------------------------
 # batsman_usage — Print help text parameterized by project vars
@@ -78,7 +79,6 @@ DIR/group-N/report.xml per group.
 Supported OS targets:
   ${BATSMAN_SUPPORTED_OS:-debian12}
 EOF
-    exit "${1:-0}"
 }
 
 # ---------------------------------------------------------------------------
@@ -95,6 +95,7 @@ batsman_parse_args() {
     _batsman_abort=0
     _batsman_report_dir=""
     _batsman_clean=0
+    _batsman_done=0
 
     while [ $# -gt 0 ]; do
         case "$1" in
@@ -162,10 +163,13 @@ batsman_parse_args() {
                 ;;
             --version)
                 echo "batsman $BATSMAN_VERSION"
-                exit 0
+                _batsman_done=1
+                return 0
                 ;;
             --help|-h)
-                batsman_usage 0
+                batsman_usage
+                _batsman_done=1
+                return 0
                 ;;
             --)
                 shift
@@ -411,7 +415,7 @@ batsman_run_parallel() {
     if [ "$_batsman_parallel_n" -gt 0 ]; then
         num_groups="$_batsman_parallel_n"
     else
-        num_groups=$(nproc)
+        num_groups=$(nproc 2>/dev/null || sysctl -n hw.logicalcpu 2>/dev/null || echo 1)
         [ "$num_groups" -lt 1 ] && num_groups=1
     fi
 
@@ -579,6 +583,7 @@ batsman_run() {
     [ "$missing" -eq 1 ] && return 1
 
     batsman_parse_args "$@" || return $?
+    [ "$_batsman_done" -eq 1 ] && return 0
     batsman_build || return $?
 
     local test_rc=0
