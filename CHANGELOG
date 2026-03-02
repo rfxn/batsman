@@ -20,6 +20,16 @@ https://github.com/rfxn/batsman
 [New] End-of-options (--) support in argument parser — all arguments after --
       are treated as file operands regardless of prefix
 [New] 20 new self-tests for CLI argument parsing hardening (94 total)
+[Fix] install-bats.sh: add set -o pipefail — download failures in pipe to tar
+      are no longer masked by tar's exit code
+[Fix] install-bats.sh: refactor fetch_tarball() from stdout pipe to file-based
+      download — prevents partial-data corruption when TLS fallback retries
+      after primary downloader writes partial output
+[Fix] install-bats.sh: add network timeouts (wget --timeout=60, curl
+      --connect-timeout 30 --max-time 120) — hung connections no longer stall
+      Docker builds indefinitely
+[Fix] README: correct container naming pattern from <project>-test-<os>-<slot>
+      to <project>-<os>-<pid>-g<N> matching actual code
 
 - 1.0.2 | Feb 28 2026:
 [Change] BATS version bump 1.11.0 → 1.13.0 — unlocks --abort (fail-fast),

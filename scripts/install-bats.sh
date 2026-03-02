@@ -17,7 +17,7 @@
 #     1 = wget --no-check-certificate, curl -sSL -k fallback (CentOS 6)
 #     2 = curl -sSL -k primary, wget --no-check-certificate fallback (Ubuntu 12.04)
 
-set -e
+set -eo pipefail
 
 BATS_VERSION="${BATS_VERSION:-1.13.0}"
 BATS_SUPPORT_VERSION="${BATS_SUPPORT_VERSION:-0.3.0}"
@@ -30,33 +30,45 @@ BATS_LIB_DIR="/usr/local/lib/bats"
 GITHUB_BASE="https://github.com/bats-core"
 
 # fetch_tarball URL DEST_DIR
-#   Downloads and extracts a GitHub release tarball into DEST_DIR.
+#   Downloads a GitHub release tarball to a temp file and extracts into DEST_DIR.
 #   Respects TLS_FALLBACK for EOL distros with outdated certificates.
+#   File-based download avoids partial-data corruption in fallback modes:
+#   partial output is cleaned before the fallback attempt begins.
 fetch_tarball() {
     local url="$1"
     local dest="$2"
+    local tarball
+    tarball="$(mktemp "${TMPDIR:-/tmp}/bats-download.XXXXXX")"
 
     mkdir -p "$dest"
 
     case "$TLS_FALLBACK" in
         0)
-            wget -qO- "$url" | tar xz -C "$dest" --strip-components=1
+            wget --timeout=60 -qO "$tarball" "$url"
             ;;
         1)
             # CentOS 6: wget --no-check-certificate primary, curl fallback
-            (wget --no-check-certificate -qO- "$url" || \
-             curl -sSL -k "$url") | tar xz -C "$dest" --strip-components=1
+            wget --no-check-certificate --timeout=60 -qO "$tarball" "$url" || {
+                rm -f "$tarball"
+                curl --connect-timeout 30 --max-time 120 -sSL -k -o "$tarball" "$url"
+            }
             ;;
         2)
             # Ubuntu 12.04: curl primary, wget --no-check-certificate fallback
-            (curl -sSL -k "$url" || \
-             wget --no-check-certificate -qO- "$url") | tar xz -C "$dest" --strip-components=1
+            curl --connect-timeout 30 --max-time 120 -sSL -k -o "$tarball" "$url" || {
+                rm -f "$tarball"
+                wget --no-check-certificate --timeout=60 -qO "$tarball" "$url"
+            }
             ;;
         *)
+            rm -f "$tarball"
             echo "install-bats.sh: unknown TLS_FALLBACK value: $TLS_FALLBACK" >&2
             exit 1
             ;;
     esac
+
+    tar xz -C "$dest" --strip-components=1 < "$tarball"
+    rm -f "$tarball"
 }
 
 echo "Installing bats-core ${BATS_VERSION}..."

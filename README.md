@@ -94,7 +94,7 @@ project images rebuild only when project code changes.
 - **TAP aggregation:** Output from all containers is collected and merged into
   a single TAP stream.
 - **Named containers:** Each container gets a deterministic name
-  (`<project>-test-<os>-<slot>`) for easy debugging. Containers are cleaned up
+  (`<project>-<os>-<pid>-g<N>`) for easy debugging. Containers are cleaned up
   on exit, including on `SIGINT`/`SIGTERM`.
 - **Sequential fallback:** When `--parallel` is not passed, tests run in a
   single container.
