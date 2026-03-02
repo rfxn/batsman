@@ -47,8 +47,12 @@
 [Fix] Add nproc fallback chain (nproc || sysctl -n hw.logicalcpu || echo 1)
       in run-tests-core.sh and Makefile.tests — enables macOS host support
       where GNU nproc is unavailable (F-011)
+[New] 12 new self-tests for execution mode functions (batsman_run_direct,
+      batsman_run_sequential, batsman_run_parallel) — validates Docker command
+      construction, timeout/report handling, container naming, TAP counting,
+      and error propagation via docker stub pattern (F-026)
 [New] 2 new self-tests validating _batsman_done flag behavior for --help and
-      --version direct-call safety (95 total)
+      --version direct-call safety (107 total)
 [Fix] Help text: document --parallel forces tap formatter (F-016); add -h
       short flag (F-044); document --parallel 0 = auto-detect (F-045); add
       CLI overrides env var precedence for --timeout and --report-dir (F-046)
