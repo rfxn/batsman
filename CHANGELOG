@@ -3,90 +3,53 @@ Copyright (C) 2002-2026 R-fx Networks <proj@rfxn.com>
 https://github.com/rfxn/batsman
 
 - 1.0.3 | Mar 02 2026:
-[Fix] Add standard copyright headers to test suite files — Makefile,
-      Dockerfile, and all five .bats files now carry rfxn copyright and
-      GPL v2 license header (F-050)
-[New] 19 new self-tests for batsman_build(), batsman_clean(), and
-      batsman_run() routing — validates Dockerfile resolution, image
-      tagging, build error paths, three cleanup modes, variant mapping
-      in clean, and execution mode dispatch via docker stub pattern
-      (F-020, F-021, F-047)
-[New] 7 new self-tests for install-bats.sh — validates SHA256 mismatch
-      detection, TLS fallback mode routing (modes 0/1/2), unknown
-      TLS_FALLBACK error, default version values, and complete three-
-      library install flow via mock command pattern (F-024)
 [New] install-bats.sh: SHA256 checksum verification for all three pinned
       tarballs (bats-core, bats-support, bats-assert) — download integrity
       backstop compensating for disabled TLS verification on legacy OS
-[New] README: migration guide section with version-specific upgrade notes
-      for consumers — covers BATS 1.13.0 run-variable unset breaking change,
-      SHA256 checksum verification, parallelism changes, CLI strictness
+[New] README: migration guide with version-specific upgrade notes for
+      consumers — covers BATS 1.13.0 run-variable unset breaking change,
+      SHA256 checksum verification, parallelism reduction, CLI strictness
+[New] 60 new self-tests — CLI argument parsing (20), build/clean/routing
+      (19), execution modes (12), install-bats.sh (7), _batsman_done
+      flag (2); 133 tests total
 [Change] Demote default parallelism from nproc*2 to nproc for both intra-OS
       container count (run-tests-core.sh) and cross-OS job count
       (Makefile.tests PARALLEL_JOBS) — prevents compounding (nproc*2)²
       container storms on test-all-parallel targets
-[Fix] CLI flags requiring a value (--os, --filter, --filter-tags, --formatter,
-      --timeout, --report-dir) now error on missing trailing argument instead
-      of consuming the next flag or setting an empty value
-[Fix] batsman_run() now checks batsman_parse_args and batsman_build return
-      codes — parse or build failures propagate immediately instead of
-      continuing with undefined state
-[Fix] --timeout validates that value is a positive integer — rejects
-      non-numeric input from both CLI and BATSMAN_TEST_TIMEOUT env var
-[Change] Unknown --flags now emit a warning and pass through to bats without
-      setting explicit_files — previously they silently routed to direct mode
-[New] End-of-options (--) support in argument parser — all arguments after --
-      are treated as file operands regardless of prefix
-[New] 20 new self-tests for CLI argument parsing hardening (93 total)
-[Fix] install-bats.sh: add set -o pipefail — download failures in pipe to tar
-      are no longer masked by tar's exit code
-[Fix] install-bats.sh: refactor fetch_tarball() from stdout pipe to file-based
-      download — prevents partial-data corruption when TLS fallback retries
-      after primary downloader writes partial output
-[Fix] install-bats.sh: add network timeouts (wget --timeout=60, curl
-      --connect-timeout 30 --max-time 120) — hung connections no longer stall
-      Docker builds indefinitely
-[Fix] README: correct container naming pattern from <project>-test-<os>-<slot>
-      to <project>-<os>-<pid>-g<N> matching actual code
-[Change] Extract variant-mapping loop from batsman_build() and batsman_clean()
-      into standalone _batsman_resolve_base_os() function — eliminates three
-      copies of identical logic (two production, one test)
-[Fix] Variant mapping tests now call production _batsman_resolve_base_os()
-      instead of test-local reimplementation (F-022)
-[Fix] Remove duplicate "all 9 base Dockerfiles exist" test from
-      01-version.bats — canonical copy retained in 03-validation.bats (F-048)
-[Fix] Version test extracts BATSMAN_VERSION from source file via grep instead
-      of hardcoding — eliminates manual test update on version bumps (F-049)
+[Change] Test suite maintenance — extract _batsman_resolve_base_os() from
+      batsman_build()/batsman_clean(), variant-mapping tests call production
+      function, remove duplicate Dockerfile test, version test extracts
+      from source file instead of hardcoding
+[Fix] Harden CLI argument parsing — shift guards on value-consuming flags,
+      batsman_run() propagates parse/build failures, --timeout numeric
+      validation, unknown --flags warn instead of silently routing to
+      direct mode, end-of-options (--) support
+[Fix] install-bats.sh: harden download pipeline — file-based download
+      replacing stdout pipe (prevents corruption on fallback retry),
+      set -o pipefail, network timeouts (wget --timeout=60, curl
+      --connect-timeout 30 --max-time 120)
 [Fix] --help and --version now return instead of exit in sourced library —
       prevents process termination when called from sourced context; adds
-      _batsman_done flag checked by batsman_run() for clean short-circuit (F-019)
+      _batsman_done flag checked by batsman_run() for clean short-circuit
 [Fix] Add nproc fallback chain (nproc || sysctl -n hw.logicalcpu || echo 1)
       in run-tests-core.sh and Makefile.tests — enables macOS host support
-      where GNU nproc is unavailable (F-011)
+      where GNU nproc is unavailable
+[Fix] Add standard copyright headers to test suite files — Makefile,
+      Dockerfile, and all five .bats files now carry rfxn copyright and
+      GPL v2 license header
 [Fix] self-test.yml: widen push branch pattern from '1.*' to '[0-9]*.*' —
-      CI triggers on any version branch, not just 1.x (F-027)
+      CI triggers on any version branch, not just 1.x
 [Fix] Makefile.tests parallel xargs targets: wrap commands with sh -c to
       emit per-OS failure banners to stderr — xargs -P exit 123 no longer
-      hides which OS targets failed (F-032)
+      hides which OS targets failed
 [Fix] Makefile.tests clean-all regex: add hyphen to character class so
       hyphenated project names (e.g., my-project) are matched for image
-      cleanup (F-010)
-[New] 12 new self-tests for execution mode functions (batsman_run_direct,
-      batsman_run_sequential, batsman_run_parallel) — validates Docker command
-      construction, timeout/report handling, container naming, TAP counting,
-      and error propagation via docker stub pattern (F-026)
-[New] 2 new self-tests validating _batsman_done flag behavior for --help and
-      --version direct-call safety (107 total)
-[Fix] Help text: document --parallel forces tap formatter (F-016); add -h
-      short flag (F-044); document --parallel 0 = auto-detect (F-045); add
-      CLI overrides env var precedence for --timeout and --report-dir (F-046)
-[Fix] README: fix TLS fallback description to reflect OS-specific ordering
-      instead of describing only mode 2 (F-031); add PARALLEL_JOBS to
-      Makefile.tests config reference (F-017); add formatter restriction
-      note to Parallel Test Orchestration section (F-016); add CLI > env var
-      precedence notes for BATSMAN_TEST_TIMEOUT and BATSMAN_REPORT_DIR (F-046)
-[Fix] CHANGELOG: clarify BATS Bash floor 3.2+ vs batsman requirement of
-      4.1+/CentOS 6 to avoid misreading project minimum (F-042)
+      cleanup
+[Fix] Documentation drift pass — help text: --parallel forces tap
+      formatter, -h short flag, --parallel 0 auto-detect, CLI>env var
+      precedence; README: TLS fallback ordering, PARALLEL_JOBS reference,
+      container naming pattern, formatter restriction; CHANGELOG: BATS
+      vs batsman Bash floor clarification
 
 - 1.0.2 | Feb 28 2026:
 [Change] BATS version bump 1.11.0 → 1.13.0 — unlocks --abort (fail-fast),
