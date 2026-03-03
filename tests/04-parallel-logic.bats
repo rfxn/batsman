@@ -1,5 +1,7 @@
 #!/usr/bin/env bats
 # 04-parallel-logic.bats — Parallel distribution and file discovery tests
+# Copyright (C) 2002-2026 R-fx Networks <proj@rfxn.com>
+# GNU GPL v2 — see LICENSE
 # shellcheck disable=SC2154,SC2034
 
 load helpers/batsman-common

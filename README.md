@@ -89,13 +89,16 @@ project images rebuild only when project code changes.
 `lib/run-tests-core.sh` is a sourced library that provides:
 
 - **Round-robin distribution:** `.bats` files are distributed across N Docker
-  containers (default: `nproc * 2`). Each container runs a subset of tests
+  containers (default: `nproc`). Each container runs a subset of tests
   independently.
 - **TAP aggregation:** Output from all containers is collected and merged into
   a single TAP stream.
 - **Named containers:** Each container gets a deterministic name
-  (`<project>-test-<os>-<slot>`) for easy debugging. Containers are cleaned up
+  (`<project>-<os>-<pid>-g<N>`) for easy debugging. Containers are cleaned up
   on exit, including on `SIGINT`/`SIGTERM`.
+- **Formatter restriction:** Parallel mode forces `tap` formatter for TAP
+  stream aggregation. The `--formatter` option applies only to sequential and
+  direct modes. Use `make test-verbose` (sequential) for pretty-formatted output.
 - **Sequential fallback:** When `--parallel` is not passed, tests run in a
   single container.
 
@@ -167,9 +170,10 @@ compatibility regressions.
 
 **Deep Legacy** — CentOS 6 (Bash 4.1, kernel 2.6.32) and Ubuntu 12.04 (Bash
 4.2). These define the portability floor:
-- `wget` may not support TLS 1.2+ — `install-bats.sh` provides a TLS fallback
-  mode using `curl -sSL -k` as primary with `wget --no-check-certificate` as
-  secondary.
+- `wget` may not support TLS 1.2+ — `install-bats.sh` provides TLS fallback
+  modes using `wget --no-check-certificate` and `curl -sSL -k` with
+  OS-specific ordering (see `TLS_FALLBACK` in Configuration Reference).
+  SHA256 checksums verify download integrity regardless of TLS mode.
 - EOL repositories: `vault.centos.org` for CentOS 6, `old-releases.ubuntu.com`
   for Ubuntu 12.04.
 - No systemd — SysV init only.
@@ -284,7 +288,7 @@ on:
     branches: [master]
 jobs:
   test:
-    uses: rfxn/batsman/.github/workflows/test.yml@v1.0.2
+    uses: rfxn/batsman/.github/workflows/test.yml@v1.0.3
     with:
       project-name: myproject
       os-matrix: '["debian12","centos7","rocky8","rocky9","ubuntu2004","ubuntu2404"]'
@@ -302,6 +306,9 @@ jobs:
 | `BATS_VERSION` | `1.13.0` | bats-core version |
 | `BATS_SUPPORT_VERSION` | `0.3.0` | bats-support version |
 | `BATS_ASSERT_VERSION` | `2.1.0` | bats-assert version |
+| `BATS_CORE_SHA256` | *(matches pinned version)* | SHA256 checksum for bats-core tarball |
+| `BATS_SUPPORT_SHA256` | *(matches pinned version)* | SHA256 checksum for bats-support tarball |
+| `BATS_ASSERT_SHA256` | *(matches pinned version)* | SHA256 checksum for bats-assert tarball |
 | `TLS_FALLBACK` | `0` | TLS mode: 0=standard wget, 1=wget --no-check-certificate with curl fallback, 2=curl primary with wget fallback |
 
 ### run-tests-core.sh Configuration Variables
@@ -317,8 +324,8 @@ jobs:
 | `BATSMAN_CONTAINER_TEST_PATH` | yes | Test directory path inside container |
 | `BATSMAN_SUPPORTED_OS` | yes | Space-separated list of supported OS targets |
 | `BATSMAN_BASE_OS_MAP` | no | Variant-to-base mappings (e.g. `"yara-x=debian12"`) |
-| `BATSMAN_TEST_TIMEOUT` | no | Per-test timeout in seconds (passed as `BATS_TEST_TIMEOUT`) |
-| `BATSMAN_REPORT_DIR` | no | Host directory for JUnit XML reports (passed as `--report-dir`) |
+| `BATSMAN_TEST_TIMEOUT` | no | Per-test timeout in seconds; overridden by `--timeout` CLI flag |
+| `BATSMAN_REPORT_DIR` | no | Host directory for JUnit XML reports; overridden by `--report-dir` CLI flag |
 
 ### Makefile.tests Variables
 
@@ -331,6 +338,7 @@ jobs:
 | `BATSMAN_OS_ALL` | yes | Combined full OS list |
 | `BATSMAN_RUN_TESTS` | yes | Path to project run-tests.sh |
 | `BATSMAN_PROJECT` | no* | Project name for image tags (required for `clean` targets) |
+| `PARALLEL_JOBS` | no | Cross-OS parallel job count for `xargs -P` (default: `nproc`; override via `make ... PARALLEL_JOBS=N`) |
 
 ### CI Workflow Inputs
 
@@ -499,16 +507,143 @@ Pin the submodule to a specific tag for reproducibility:
 ```bash
 cd tests/infra
 git fetch --tags
+git checkout v1.0.3
+cd ../..
+git add tests/infra
+git commit -m "Pin batsman submodule to v1.0.3"
+```
+
+In CI workflow callers, reference the same tag:
+```yaml
+uses: rfxn/batsman/.github/workflows/test.yml@v1.0.3
+```
+
+## Migration Guide
+
+Upgrade notes for consumer projects. Newest version first.
+
+### Upgrading to v1.0.3
+
+**SHA256 checksum verification (transparent)**
+
+`install-bats.sh` now verifies SHA256 checksums for all three downloaded
+tarballs (bats-core, bats-support, bats-assert) after download and before
+extraction. This is transparent for standard usage — the checksums match the
+pinned versions shipped with batsman. If you override `BATS_VERSION`,
+`BATS_SUPPORT_VERSION`, or `BATS_ASSERT_VERSION` via environment variables,
+you must also set the corresponding `BATS_CORE_SHA256`, `BATS_SUPPORT_SHA256`,
+or `BATS_ASSERT_SHA256` to match your custom tarballs. A mismatch aborts the
+build with expected vs actual hash output.
+
+**Default parallelism reduced**
+
+Default parallel container count changed from `nproc*2` to `nproc` — both for
+intra-OS containers (`run-tests-core.sh`) and cross-OS parallel jobs
+(`Makefile.tests PARALLEL_JOBS`). This prevents compounding container storms
+on `test-all-parallel` targets. To restore the previous behavior, pass an
+explicit count:
+
+```bash
+# Intra-OS: override via CLI
+./tests/run-tests.sh --parallel $(($(nproc) * 2))
+
+# Cross-OS: override via Make variable
+make -C tests test-all-parallel PARALLEL_JOBS=$(($(nproc) * 2))
+```
+
+**CLI argument parsing stricter**
+
+Flags that require a value (`--os`, `--filter`, `--filter-tags`, `--formatter`,
+`--timeout`, `--report-dir`) now error when the trailing argument is missing.
+`--timeout` rejects non-numeric values. Unknown `--flags` emit a warning
+instead of silently routing to direct mode. These changes only affect incorrect
+invocations — correct usage is unaffected.
+
+### Upgrading to v1.0.2
+
+**BATS 1.13.0 run-variable unset — BREAKING CHANGE**
+
+BATS was upgraded from 1.11.0 to 1.13.0. Starting with BATS 1.12.0, the `run`
+command unsets `$output`, `$lines`, `$stderr`, and `$stderr_lines` at the start
+of each invocation. Tests that rely on stale values from a previous `run` call
+will silently produce incorrect results.
+
+**Broken pattern:**
+```bash
+@test "example" {
+    run some_command
+    run another_command
+    # BUG: $output now contains only another_command's output
+    # In BATS < 1.12.0, if another_command produced no output,
+    # $output would still hold some_command's output (crosstalk)
+    assert_output --partial "from some_command"  # FAILS
+}
+```
+
+**Fixed pattern:**
+```bash
+@test "example" {
+    run some_command
+    local first_output="$output"
+    run another_command
+    assert_output --partial "from another_command"
+    [[ "$first_output" == *"from some_command"* ]]
+}
+```
+
+Audit your existing test suites for this pattern:
+```bash
+grep -n 'run ' tests/*.bats | grep -B1 'assert_output\|assert_line\|\$output\|\$lines'
+```
+
+**New CLI options available**
+
+v1.0.2 added `--timeout`, `--abort`, `--filter-tags`, `--report-dir`, `--clean`,
+and `--version`. See the [Script CLI](#script-cli) section for usage.
+
+**CI workflow changes**
+
+The reusable workflow gained `test-path` (default `/opt/tests`), `reports`
+(default `true`), and `concurrency-group` inputs. JUnit XML reports are uploaded
+as artifacts with 14-day retention and written to the job summary.
+
+Update your CI caller reference:
+```yaml
+# Before
+uses: rfxn/batsman/.github/workflows/test.yml@v1.0.1
+
+# After
+uses: rfxn/batsman/.github/workflows/test.yml@v1.0.2
+```
+
+Update your submodule pin:
+```bash
+cd tests/infra
+git fetch origin --tags --force
 git checkout v1.0.2
 cd ../..
 git add tests/infra
 git commit -m "Pin batsman submodule to v1.0.2"
 ```
 
-In CI workflow callers, reference the same tag:
-```yaml
-uses: rfxn/batsman/.github/workflows/test.yml@v1.0.2
-```
+### Upgrading to v1.0.1
+
+**Variant mapping (new capability)**
+
+v1.0.1 introduced `BATSMAN_BASE_OS_MAP` for mapping non-OS variant names to
+base OS images (e.g., `"yara-x=debian12"`). No action required unless you want
+to use this feature.
+
+**Makefile include and CI workflow introduced**
+
+v1.0.1 added `include/Makefile.tests` and `.github/workflows/test.yml`. Projects
+upgrading from v1.0.0 need to create a `tests/Makefile` and CI workflow caller.
+See the [Integration Guide](#integration-guide) section for templates.
+
+**Rocky 10 image name fix (transparent)**
+
+The Rocky 10 base image was corrected from `rockylinux:10` to
+`rockylinux/rockylinux:10`. No action required.
 
 ## Consumer Projects
 

@@ -2,10 +2,59 @@ batsman — Shared BATS Test Infrastructure
 Copyright (C) 2002-2026 R-fx Networks <proj@rfxn.com>
 https://github.com/rfxn/batsman
 
+- 1.0.3 | Mar 02 2026:
+[New] install-bats.sh: SHA256 checksum verification for all three pinned
+      tarballs (bats-core, bats-support, bats-assert) — download integrity
+      backstop compensating for disabled TLS verification on legacy OS
+[New] README: migration guide with version-specific upgrade notes for
+      consumers — covers BATS 1.13.0 run-variable unset breaking change,
+      SHA256 checksum verification, parallelism reduction, CLI strictness
+[New] 60 new self-tests — CLI argument parsing (20), build/clean/routing
+      (19), execution modes (12), install-bats.sh (7), _batsman_done
+      flag (2); 133 tests total
+[Change] Demote default parallelism from nproc*2 to nproc for both intra-OS
+      container count (run-tests-core.sh) and cross-OS job count
+      (Makefile.tests PARALLEL_JOBS) — prevents compounding (nproc*2)²
+      container storms on test-all-parallel targets
+[Change] Test suite maintenance — extract _batsman_resolve_base_os() from
+      batsman_build()/batsman_clean(), variant-mapping tests call production
+      function, remove duplicate Dockerfile test, version test extracts
+      from source file instead of hardcoding
+[Fix] Harden CLI argument parsing — shift guards on value-consuming flags,
+      batsman_run() propagates parse/build failures, --timeout numeric
+      validation, unknown --flags warn instead of silently routing to
+      direct mode, end-of-options (--) support
+[Fix] install-bats.sh: harden download pipeline — file-based download
+      replacing stdout pipe (prevents corruption on fallback retry),
+      set -o pipefail, network timeouts (wget --timeout=60, curl
+      --connect-timeout 30 --max-time 120)
+[Fix] --help and --version now return instead of exit in sourced library —
+      prevents process termination when called from sourced context; adds
+      _batsman_done flag checked by batsman_run() for clean short-circuit
+[Fix] Add nproc fallback chain (nproc || sysctl -n hw.logicalcpu || echo 1)
+      in run-tests-core.sh and Makefile.tests — enables macOS host support
+      where GNU nproc is unavailable
+[Fix] Add standard copyright headers to test suite files — Makefile,
+      Dockerfile, and all five .bats files now carry rfxn copyright and
+      GPL v2 license header
+[Fix] self-test.yml: widen push branch pattern from '1.*' to '[0-9]*.*' —
+      CI triggers on any version branch, not just 1.x
+[Fix] Makefile.tests parallel xargs targets: wrap commands with sh -c to
+      emit per-OS failure banners to stderr — xargs -P exit 123 no longer
+      hides which OS targets failed
+[Fix] Makefile.tests clean-all regex: add hyphen to character class so
+      hyphenated project names (e.g., my-project) are matched for image
+      cleanup
+[Fix] Documentation drift pass — help text: --parallel forces tap
+      formatter, -h short flag, --parallel 0 auto-detect, CLI>env var
+      precedence; README: TLS fallback ordering, PARALLEL_JOBS reference,
+      container naming pattern, formatter restriction; CHANGELOG: BATS
+      vs batsman Bash floor clarification
+
 - 1.0.2 | Feb 28 2026:
 [Change] BATS version bump 1.11.0 → 1.13.0 — unlocks --abort (fail-fast),
       --negative-filter, BATS_TEST_TIMEOUT bug fixes, JUnit XML fixes;
-      Bash floor remains 3.2+ (CentOS 6 compatible)
+      BATS Bash floor remains 3.2+ (batsman requires 4.1+/CentOS 6)
 [New] --version CLI option and BATSMAN_VERSION variable — consumer projects
       and CI can query the batsman version programmatically
 [New] --timeout SECS CLI option and BATSMAN_TEST_TIMEOUT env var for per-test

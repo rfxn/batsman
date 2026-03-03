@@ -1,36 +1,48 @@
-- 1.0.2 | Feb 28 2026:
-[Change] BATS version bump 1.11.0 → 1.13.0 — unlocks --abort (fail-fast),
-      --negative-filter, BATS_TEST_TIMEOUT bug fixes, JUnit XML fixes;
-      Bash floor remains 3.2+ (CentOS 6 compatible)
-[New] --version CLI option and BATSMAN_VERSION variable — consumer projects
-      and CI can query the batsman version programmatically
-[New] --timeout SECS CLI option and BATSMAN_TEST_TIMEOUT env var for per-test
-      timeout protection (passed as BATS_TEST_TIMEOUT into containers)
-[New] --abort CLI option for fail-fast — stops on first test failure; in
-      parallel mode applies per-group (each container aborts independently)
-[New] --filter-tags TAG CLI option for tag-based test selection — passthrough
-      to bats --filter-tags (comma-separated, ! to negate; requires BATS 1.8.0+)
-[New] --report-dir DIR CLI option, BATSMAN_REPORT_DIR env var, and Makefile
-      test-report target for JUnit XML report generation; sequential/direct
-      produce DIR/report.xml, parallel produces DIR/group-N/report.xml per
-      group; CI workflow uploads artifacts (14-day retention) and writes job
-      summary with test/failure/error/skipped/duration table
-[New] --clean CLI option and batsman_clean() function for Docker image cleanup
-      — removes base and test images after test run (test exit codes preserved);
-      three modes: current OS (default), --all (all project images),
-      --dangling-only; automatic dangling prune after every build; Makefile
-      targets: clean, clean-all, clean-dangling
-[New] CI concurrency groups — rapid pushes to the same branch auto-cancel
-      superseded runs per-OS; optional concurrency-group input for custom prefix
-[New] CI workflow: test-path input (default /opt/tests) and reports boolean
-      input (default true) for per-caller customization
-[Fix] Makefile clean-all: match variant image suffixes (e.g., yara-x) in
-      addition to standard OS targets
-[Fix] CI workflow: JUnit summary step tolerates missing XML attributes
-      (errors, skipped) — grep failures no longer kill the step under set -e
-[New] Self-test suite — batsman tests itself via self-bootstrap; unit tests
-      cover argument parsing, variable validation, variant mapping, parallel
-      distribution, and file discovery (74 tests across 4 test files)
-[New] CI workflow for self-tests — standalone workflow (cannot reuse test.yml
-      because infra IS the repo root, not a submodule); lint + Docker build +
-      BATS run with JUnit reports and job summary
+- 1.0.3 | Mar 02 2026:
+[New] install-bats.sh: SHA256 checksum verification for all three pinned
+      tarballs (bats-core, bats-support, bats-assert) — download integrity
+      backstop compensating for disabled TLS verification on legacy OS
+[New] README: migration guide with version-specific upgrade notes for
+      consumers — covers BATS 1.13.0 run-variable unset breaking change,
+      SHA256 checksum verification, parallelism reduction, CLI strictness
+[New] 60 new self-tests — CLI argument parsing (20), build/clean/routing
+      (19), execution modes (12), install-bats.sh (7), _batsman_done
+      flag (2); 133 tests total
+[Change] Demote default parallelism from nproc*2 to nproc for both intra-OS
+      container count (run-tests-core.sh) and cross-OS job count
+      (Makefile.tests PARALLEL_JOBS) — prevents compounding (nproc*2)²
+      container storms on test-all-parallel targets
+[Change] Test suite maintenance — extract _batsman_resolve_base_os() from
+      batsman_build()/batsman_clean(), variant-mapping tests call production
+      function, remove duplicate Dockerfile test, version test extracts
+      from source file instead of hardcoding
+[Fix] Harden CLI argument parsing — shift guards on value-consuming flags,
+      batsman_run() propagates parse/build failures, --timeout numeric
+      validation, unknown --flags warn instead of silently routing to
+      direct mode, end-of-options (--) support
+[Fix] install-bats.sh: harden download pipeline — file-based download
+      replacing stdout pipe (prevents corruption on fallback retry),
+      set -o pipefail, network timeouts (wget --timeout=60, curl
+      --connect-timeout 30 --max-time 120)
+[Fix] --help and --version now return instead of exit in sourced library —
+      prevents process termination when called from sourced context; adds
+      _batsman_done flag checked by batsman_run() for clean short-circuit
+[Fix] Add nproc fallback chain (nproc || sysctl -n hw.logicalcpu || echo 1)
+      in run-tests-core.sh and Makefile.tests — enables macOS host support
+      where GNU nproc is unavailable
+[Fix] Add standard copyright headers to test suite files — Makefile,
+      Dockerfile, and all five .bats files now carry rfxn copyright and
+      GPL v2 license header
+[Fix] self-test.yml: widen push branch pattern from '1.*' to '[0-9]*.*' —
+      CI triggers on any version branch, not just 1.x
+[Fix] Makefile.tests parallel xargs targets: wrap commands with sh -c to
+      emit per-OS failure banners to stderr — xargs -P exit 123 no longer
+      hides which OS targets failed
+[Fix] Makefile.tests clean-all regex: add hyphen to character class so
+      hyphenated project names (e.g., my-project) are matched for image
+      cleanup
+[Fix] Documentation drift pass — help text: --parallel forces tap
+      formatter, -h short flag, --parallel 0 auto-detect, CLI>env var
+      precedence; README: TLS fallback ordering, PARALLEL_JOBS reference,
+      container naming pattern, formatter restriction; CHANGELOG: BATS
+      vs batsman Bash floor clarification

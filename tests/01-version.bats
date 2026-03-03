@@ -1,5 +1,7 @@
 #!/usr/bin/env bats
 # 01-version.bats — Version, source guard, and --help/--version tests
+# Copyright (C) 2002-2026 R-fx Networks <proj@rfxn.com>
+# GNU GPL v2 — see LICENSE
 
 load helpers/batsman-common
 
@@ -24,8 +26,12 @@ teardown() {
     [[ "$BATSMAN_VERSION" =~ $pattern ]]
 }
 
-@test "BATSMAN_VERSION matches expected 1.0.2" {
-    [ "$BATSMAN_VERSION" = "1.0.2" ]
+@test "BATSMAN_VERSION matches source file declaration" {
+    local src_version
+    src_version=$(grep -E '^BATSMAN_VERSION=' "$BATSMAN_LIB" | head -1 | \
+        sed 's/^BATSMAN_VERSION="//' | sed 's/"$//')
+    [ -n "$src_version" ]
+    [ "$BATSMAN_VERSION" = "$src_version" ]
 }
 
 # ---------------------------------------------------------------------------
@@ -63,6 +69,12 @@ teardown() {
     [[ "$output" == batsman* ]]
 }
 
+@test "--version sets _batsman_done flag and returns (no exit)" {
+    _batsman_done=0
+    batsman_parse_args --version
+    [ "$_batsman_done" -eq 1 ]
+}
+
 # ---------------------------------------------------------------------------
 # --help
 # ---------------------------------------------------------------------------
@@ -78,14 +90,8 @@ teardown() {
     [[ "$output" == *"debian12"* ]]
 }
 
-# ---------------------------------------------------------------------------
-# Dockerfile inventory
-# ---------------------------------------------------------------------------
-
-@test "all 9 base Dockerfiles exist" {
-    local os
-    for os in debian12 centos6 centos7 rocky8 rocky9 rocky10 \
-              ubuntu1204 ubuntu2004 ubuntu2404; do
-        [ -f "$BATSMAN_DOCKERFILES/Dockerfile.$os" ]
-    done
+@test "--help sets _batsman_done flag and returns (no exit)" {
+    _batsman_done=0
+    batsman_parse_args --help
+    [ "$_batsman_done" -eq 1 ]
 }

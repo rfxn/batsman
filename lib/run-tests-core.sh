@@ -30,7 +30,7 @@ fi
 # ---------------------------------------------------------------------------
 # Version
 # ---------------------------------------------------------------------------
-BATSMAN_VERSION="1.0.2"
+BATSMAN_VERSION="1.0.3"
 
 # ---------------------------------------------------------------------------
 # Internal state (set by batsman_parse_args)
@@ -46,6 +46,7 @@ _batsman_test_timeout=""
 _batsman_abort=0
 _batsman_report_dir=""
 _batsman_clean=0
+_batsman_done=0
 
 # ---------------------------------------------------------------------------
 # batsman_usage — Print help text parameterized by project vars
@@ -58,16 +59,18 @@ Usage: $0 [OPTIONS] [BATS_ARGS...]
 
 Options:
   --os OS           Target OS (default: ${BATSMAN_DEFAULT_OS:-debian12})
-  --parallel [N]    Run test files in N parallel containers (default: nproc*2)
+  --parallel [N]    Run test files in N parallel containers (default: nproc;
+                    0 = auto-detect). Forces tap formatter for aggregation.
   --filter PATTERN  Filter tests by name (passed to bats --filter)
   --filter-tags TAG Filter tests by tag (comma-separated, ! to negate)
   --formatter FMT   BATS output formatter: tap (default), pretty
-  --timeout SECS    Per-test timeout in seconds (passed as BATS_TEST_TIMEOUT)
+                    Ignored in --parallel mode (tap required for aggregation)
+  --timeout SECS    Per-test timeout in seconds (overrides BATSMAN_TEST_TIMEOUT)
   --abort           Stop on first test failure (requires BATS 1.13.0+)
-  --report-dir DIR  Write JUnit XML reports to DIR on the host
+  --report-dir DIR  Write JUnit XML reports to DIR (overrides BATSMAN_REPORT_DIR)
   --clean           Remove project images for the target OS after test run
   --version         Show batsman version and exit
-  --help            Show this help
+  --help, -h        Show this help
 
 Any remaining arguments are passed directly to bats.
 Specific test file paths bypass parallel mode.
@@ -78,7 +81,6 @@ DIR/group-N/report.xml per group.
 Supported OS targets:
   ${BATSMAN_SUPPORTED_OS:-debian12}
 EOF
-    exit "${1:-0}"
 }
 
 # ---------------------------------------------------------------------------
@@ -95,10 +97,15 @@ batsman_parse_args() {
     _batsman_abort=0
     _batsman_report_dir=""
     _batsman_clean=0
+    _batsman_done=0
 
     while [ $# -gt 0 ]; do
         case "$1" in
             --os)
+                if [ $# -lt 2 ]; then
+                    echo "Error: --os requires a value" >&2
+                    return 1
+                fi
                 shift
                 _batsman_os="$1"
                 ;;
@@ -111,18 +118,34 @@ batsman_parse_args() {
                 fi
                 ;;
             --filter)
+                if [ $# -lt 2 ]; then
+                    echo "Error: --filter requires a value" >&2
+                    return 1
+                fi
                 shift
                 _batsman_bats_args+=("--filter" "$1")
                 ;;
             --filter-tags)
+                if [ $# -lt 2 ]; then
+                    echo "Error: --filter-tags requires a value" >&2
+                    return 1
+                fi
                 shift
                 _batsman_bats_args+=("--filter-tags" "$1")
                 ;;
             --formatter)
+                if [ $# -lt 2 ]; then
+                    echo "Error: --formatter requires a value" >&2
+                    return 1
+                fi
                 shift
                 _batsman_formatter="$1"
                 ;;
             --timeout)
+                if [ $# -lt 2 ]; then
+                    echo "Error: --timeout requires a value" >&2
+                    return 1
+                fi
                 shift
                 _batsman_test_timeout="$1"
                 ;;
@@ -130,6 +153,10 @@ batsman_parse_args() {
                 _batsman_abort=1
                 ;;
             --report-dir)
+                if [ $# -lt 2 ]; then
+                    echo "Error: --report-dir requires a value" >&2
+                    return 1
+                fi
                 shift
                 _batsman_report_dir="$1"
                 ;;
@@ -138,14 +165,31 @@ batsman_parse_args() {
                 ;;
             --version)
                 echo "batsman $BATSMAN_VERSION"
-                exit 0
+                _batsman_done=1
+                return 0
                 ;;
             --help|-h)
-                batsman_usage 0
+                batsman_usage
+                _batsman_done=1
+                return 0
+                ;;
+            --)
+                shift
+                while [ $# -gt 0 ]; do
+                    _batsman_bats_args+=("$1")
+                    _batsman_explicit_files=1
+                    shift
+                done
+                break
                 ;;
             *)
-                _batsman_bats_args+=("$1")
-                _batsman_explicit_files=1
+                if [[ "$1" == --* ]]; then
+                    echo "Warning: unknown option '$1' -- passing to bats" >&2
+                    _batsman_bats_args+=("$1")
+                else
+                    _batsman_bats_args+=("$1")
+                    _batsman_explicit_files=1
+                fi
                 ;;
         esac
         shift
@@ -176,6 +220,15 @@ batsman_parse_args() {
         _batsman_report_dir="$BATSMAN_REPORT_DIR"
     fi
 
+    # Validate timeout is a positive integer (covers both CLI and env var)
+    if [ -n "$_batsman_test_timeout" ]; then
+        local _num_pat='^[0-9]+$'
+        if ! [[ "$_batsman_test_timeout" =~ $_num_pat ]]; then
+            echo "Error: timeout must be a positive integer, got '$_batsman_test_timeout'" >&2
+            return 1
+        fi
+    fi
+
     # Prepend --abort to bats args if requested
     if [ "$_batsman_abort" -eq 1 ]; then
         _batsman_bats_args=("--abort" "${_batsman_bats_args[@]}")
@@ -183,21 +236,33 @@ batsman_parse_args() {
 }
 
 # ---------------------------------------------------------------------------
-# batsman_build — Two-phase Docker build (base from infra, project from tests/)
+# _batsman_resolve_base_os — Resolve variant OS to base OS via BATSMAN_BASE_OS_MAP
+#
+# Usage: _batsman_resolve_base_os <os_name>
+# Outputs the resolved base OS name (identity if no mapping found).
 # ---------------------------------------------------------------------------
-batsman_build() {
-    # Allow projects to map variant names to base OS targets
-    # e.g., BATSMAN_BASE_OS_MAP="yara-x=debian12" means --os yara-x uses debian12 base
-    local base_os="$_batsman_os"
+_batsman_resolve_base_os() {
+    local os="$1"
+    local base_os="$os"
     if [ -n "${BATSMAN_BASE_OS_MAP:-}" ]; then
         local _map_entry
         for _map_entry in $BATSMAN_BASE_OS_MAP; do
-            if [ "${_map_entry%%=*}" = "$_batsman_os" ]; then
+            if [ "${_map_entry%%=*}" = "$os" ]; then
                 base_os="${_map_entry#*=}"
                 break
             fi
         done
     fi
+    echo "$base_os"
+}
+
+# ---------------------------------------------------------------------------
+# batsman_build — Two-phase Docker build (base from infra, project from tests/)
+# ---------------------------------------------------------------------------
+batsman_build() {
+    # Resolve variant OS to base (e.g., yara-x -> debian12)
+    local base_os
+    base_os="$(_batsman_resolve_base_os "$_batsman_os")"
 
     local base_dockerfile="$BATSMAN_INFRA_DIR/dockerfiles/Dockerfile.${base_os}"
     local base_tag="${BATSMAN_PROJECT}-base-${base_os}"
@@ -277,18 +342,9 @@ batsman_clean() {
     else
         echo "=== Removing ${BATSMAN_PROJECT} images for ${_batsman_os} ==="
         local test_img="${BATSMAN_PROJECT}-test-${_batsman_os}"
-        local base_img="${BATSMAN_PROJECT}-base-${_batsman_os}"
-
-        # Resolve base OS for variants (same logic as batsman_build)
-        if [ -n "${BATSMAN_BASE_OS_MAP:-}" ]; then
-            local _map_entry
-            for _map_entry in $BATSMAN_BASE_OS_MAP; do
-                if [ "${_map_entry%%=*}" = "$_batsman_os" ]; then
-                    base_img="${BATSMAN_PROJECT}-base-${_map_entry#*=}"
-                    break
-                fi
-            done
-        fi
+        local base_os
+        base_os="$(_batsman_resolve_base_os "$_batsman_os")"
+        local base_img="${BATSMAN_PROJECT}-base-${base_os}"
 
         echo "  Removing $test_img"
         docker rmi "$test_img" 2>/dev/null || true
@@ -361,7 +417,7 @@ batsman_run_parallel() {
     if [ "$_batsman_parallel_n" -gt 0 ]; then
         num_groups="$_batsman_parallel_n"
     else
-        num_groups=$(( $(nproc) * 2 ))
+        num_groups=$(nproc 2>/dev/null || sysctl -n hw.logicalcpu 2>/dev/null || echo 1)
         [ "$num_groups" -lt 1 ] && num_groups=1
     fi
 
@@ -528,8 +584,9 @@ batsman_run() {
     done
     [ "$missing" -eq 1 ] && return 1
 
-    batsman_parse_args "$@"
-    batsman_build
+    batsman_parse_args "$@" || return $?
+    [ "$_batsman_done" -eq 1 ] && return 0
+    batsman_build || return $?
 
     local test_rc=0
     if [ "$_batsman_explicit_files" -eq 1 ]; then
