@@ -288,7 +288,7 @@ on:
     branches: [master]
 jobs:
   test:
-    uses: rfxn/batsman/.github/workflows/test.yml@v1.0.2
+    uses: rfxn/batsman/.github/workflows/test.yml@v1.0.3
     with:
       project-name: myproject
       os-matrix: '["debian12","centos7","rocky8","rocky9","ubuntu2004","ubuntu2404"]'
@@ -507,15 +507,15 @@ Pin the submodule to a specific tag for reproducibility:
 ```bash
 cd tests/infra
 git fetch --tags
-git checkout v1.0.2
+git checkout v1.0.3
 cd ../..
 git add tests/infra
-git commit -m "Pin batsman submodule to v1.0.2"
+git commit -m "Pin batsman submodule to v1.0.3"
 ```
 
 In CI workflow callers, reference the same tag:
 ```yaml
-uses: rfxn/batsman/.github/workflows/test.yml@v1.0.2
+uses: rfxn/batsman/.github/workflows/test.yml@v1.0.3
 ```
 
 ## Migration Guide
