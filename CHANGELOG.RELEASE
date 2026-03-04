@@ -1,4 +1,7 @@
 - 1.0.3 | Mar 02 2026:
+
+  -- New Features --
+
 [New] install-bats.sh: SHA256 checksum verification for all three pinned
       tarballs (bats-core, bats-support, bats-assert) — download integrity
       backstop compensating for disabled TLS verification on legacy OS
@@ -8,14 +11,9 @@
 [New] 60 new self-tests — CLI argument parsing (20), build/clean/routing
       (19), execution modes (12), install-bats.sh (7), _batsman_done
       flag (2); 133 tests total
-[Change] Demote default parallelism from nproc*2 to nproc for both intra-OS
-      container count (run-tests-core.sh) and cross-OS job count
-      (Makefile.tests PARALLEL_JOBS) — prevents compounding (nproc*2)²
-      container storms on test-all-parallel targets
-[Change] Test suite maintenance — extract _batsman_resolve_base_os() from
-      batsman_build()/batsman_clean(), variant-mapping tests call production
-      function, remove duplicate Dockerfile test, version test extracts
-      from source file instead of hardcoding
+
+  -- Bug Fixes --
+
 [Fix] Harden CLI argument parsing — shift guards on value-consuming flags,
       batsman_run() propagates parse/build failures, --timeout numeric
       validation, unknown --flags warn instead of silently routing to
@@ -30,9 +28,6 @@
 [Fix] Add nproc fallback chain (nproc || sysctl -n hw.logicalcpu || echo 1)
       in run-tests-core.sh and Makefile.tests — enables macOS host support
       where GNU nproc is unavailable
-[Fix] Add standard copyright headers to test suite files — Makefile,
-      Dockerfile, and all five .bats files now carry rfxn copyright and
-      GPL v2 license header
 [Fix] self-test.yml: widen push branch pattern from '1.*' to '[0-9]*.*' —
       CI triggers on any version branch, not just 1.x
 [Fix] Makefile.tests parallel xargs targets: wrap commands with sh -c to
@@ -41,8 +36,12 @@
 [Fix] Makefile.tests clean-all regex: add hyphen to character class so
       hyphenated project names (e.g., my-project) are matched for image
       cleanup
-[Fix] Documentation drift pass — help text: --parallel forces tap
-      formatter, -h short flag, --parallel 0 auto-detect, CLI>env var
-      precedence; README: TLS fallback ordering, PARALLEL_JOBS reference,
-      container naming pattern, formatter restriction; CHANGELOG: BATS
-      vs batsman Bash floor clarification
+[Fix] Documentation accuracy pass — correct help text, README, and
+      CHANGELOG for parallelism, TLS fallback, container naming, and
+      formatter behavior
+
+  -- Changes --
+
+[Change] Demote default parallelism from nproc*2 to nproc for both
+      intra-OS and cross-OS parallelism — prevents compounding container
+      storms on test-all-parallel targets
