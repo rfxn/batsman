@@ -1,4 +1,6 @@
 - 1.2.0 | Mar 08 2026:
+[Change] Updated README.md pinning examples and CI workflow references from v1.0.3
+      to v1.2.0
 [Change] Extract shared _uat_json_extract helper for JSON dot-notation traversal;
       assert_json_field and assert_json_array_length now share traversal logic
 [Fix] README: add all 12 new UAT helper functions to Available Helpers table
