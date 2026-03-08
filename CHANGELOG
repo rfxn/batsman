@@ -2,6 +2,17 @@ batsman — Shared BATS Test Infrastructure
 Copyright (C) 2002-2026 R-fx Networks <proj@rfxn.com>
 https://github.com/rfxn/batsman
 
+- 1.1.0 | Mar 07 2026:
+[New] UAT helper library (lib/uat-helpers.bash) — shared assertion primitives
+      for BATS-based UAT scenarios: uat_setup, uat_capture, assert_valid_json,
+      assert_valid_csv, assert_empty_state_message, assert_no_banner_corruption
+[New] UAT Makefile targets (uat, uat-verbose) — run tests/uat/ scenarios via
+      batsman_run_direct() path passthrough; invisible to 'make test'
+[New] 25 new self-tests for UAT helper library — setup, capture, log, JSON/CSV
+      validation, empty-state, banner corruption detection; 162 tests total
+[New] README: UAT Scenarios section — directory structure, writing scenarios,
+      available helpers, tag convention, running UAT
+
 - 1.0.3 | Mar 02 2026:
 [New] install-bats.sh: SHA256 checksum verification for all three pinned
       tarballs (bats-core, bats-support, bats-assert) — download integrity

@@ -125,3 +125,18 @@ clean-all:
 
 clean-dangling:
 	docker image prune -f
+
+# ---------------------------------------------------------------------------
+# UAT targets — run UAT scenario tests from tests/uat/ directory
+# Uses batsman_run_direct() via -- path passthrough to BATS.
+# UAT files are invisible to 'make test' (maxdepth 1 discovery).
+# ---------------------------------------------------------------------------
+BATSMAN_UAT_PATH ?= /opt/tests/uat/
+
+.PHONY: uat uat-verbose
+
+uat:
+	$(BATSMAN_RUN_TESTS) -- $(BATSMAN_UAT_PATH)
+
+uat-verbose:
+	$(BATSMAN_RUN_TESTS) --formatter pretty -- $(BATSMAN_UAT_PATH)

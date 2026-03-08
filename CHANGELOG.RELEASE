@@ -1,47 +1,10 @@
-- 1.0.3 | Mar 02 2026:
-
-  -- New Features --
-
-[New] install-bats.sh: SHA256 checksum verification for all three pinned
-      tarballs (bats-core, bats-support, bats-assert) — download integrity
-      backstop compensating for disabled TLS verification on legacy OS
-[New] README: migration guide with version-specific upgrade notes for
-      consumers — covers BATS 1.13.0 run-variable unset breaking change,
-      SHA256 checksum verification, parallelism reduction, CLI strictness
-[New] 60 new self-tests — CLI argument parsing (20), build/clean/routing
-      (19), execution modes (12), install-bats.sh (7), _batsman_done
-      flag (2); 133 tests total
-
-  -- Bug Fixes --
-
-[Fix] Harden CLI argument parsing — shift guards on value-consuming flags,
-      batsman_run() propagates parse/build failures, --timeout numeric
-      validation, unknown --flags warn instead of silently routing to
-      direct mode, end-of-options (--) support
-[Fix] install-bats.sh: harden download pipeline — file-based download
-      replacing stdout pipe (prevents corruption on fallback retry),
-      set -o pipefail, network timeouts (wget --timeout=60, curl
-      --connect-timeout 30 --max-time 120)
-[Fix] --help and --version now return instead of exit in sourced library —
-      prevents process termination when called from sourced context; adds
-      _batsman_done flag checked by batsman_run() for clean short-circuit
-[Fix] Add nproc fallback chain (nproc || sysctl -n hw.logicalcpu || echo 1)
-      in run-tests-core.sh and Makefile.tests — enables macOS host support
-      where GNU nproc is unavailable
-[Fix] self-test.yml: widen push branch pattern from '1.*' to '[0-9]*.*' —
-      CI triggers on any version branch, not just 1.x
-[Fix] Makefile.tests parallel xargs targets: wrap commands with sh -c to
-      emit per-OS failure banners to stderr — xargs -P exit 123 no longer
-      hides which OS targets failed
-[Fix] Makefile.tests clean-all regex: add hyphen to character class so
-      hyphenated project names (e.g., my-project) are matched for image
-      cleanup
-[Fix] Documentation accuracy pass — correct help text, README, and
-      CHANGELOG for parallelism, TLS fallback, container naming, and
-      formatter behavior
-
-  -- Changes --
-
-[Change] Demote default parallelism from nproc*2 to nproc for both
-      intra-OS and cross-OS parallelism — prevents compounding container
-      storms on test-all-parallel targets
+- 1.1.0 | Mar 07 2026:
+[New] UAT helper library (lib/uat-helpers.bash) — shared assertion primitives
+      for BATS-based UAT scenarios: uat_setup, uat_capture, assert_valid_json,
+      assert_valid_csv, assert_empty_state_message, assert_no_banner_corruption
+[New] UAT Makefile targets (uat, uat-verbose) — run tests/uat/ scenarios via
+      batsman_run_direct() path passthrough; invisible to 'make test'
+[New] 25 new self-tests for UAT helper library — setup, capture, log, JSON/CSV
+      validation, empty-state, banner corruption detection; 162 tests total
+[New] README: UAT Scenarios section — directory structure, writing scenarios,
+      available helpers, tag convention, running UAT

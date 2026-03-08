@@ -432,6 +432,103 @@ make -C tests test-verbose    # pretty output (sequential)
 ./tests/run-tests.sh --version
 ```
 
+## UAT Scenarios
+
+batsman supports a separate **UAT (User Acceptance Testing)** layer alongside
+unit and integration tests. UAT scenarios test multi-step sysadmin workflows,
+output quality, and cross-view consistency — things that unit tests don't cover.
+
+### How It Works
+
+- UAT scenarios live in `tests/uat/` as standard BATS files
+- They are **invisible to `make test`** (the parallel runner uses `maxdepth 1`)
+- Run with `make uat` or `make uat-verbose`
+- Uses the same Docker images as unit tests — no separate build
+- Shared assertion helpers via `lib/uat-helpers.bash`
+
+### Directory Structure
+
+```
+tests/
+├── infra/                    # batsman submodule
+├── helpers/
+│   └── uat-myproject.bash    # Project-specific UAT helpers
+├── uat/                      # UAT scenario files
+│   ├── 01-workflow-a.bats
+│   ├── 02-workflow-b.bats
+│   └── ...
+├── 01-unit-tests.bats        # Unit tests (run by make test)
+└── Makefile
+```
+
+### Writing UAT Scenarios
+
+```bash
+#!/usr/bin/env bats
+load '/usr/local/lib/bats/bats-support/load'
+load '/usr/local/lib/bats/bats-assert/load'
+load '../helpers/uat-myproject'
+load '../infra/lib/uat-helpers'
+
+setup_file() {
+    uat_setup              # Initialize output capture
+    my_project_install     # Project-specific install
+}
+
+teardown_file() {
+    my_project_reset       # Clean state
+}
+
+# bats test_tags=uat,uat:my-workflow
+@test "UAT: operation produces expected state" {
+    uat_capture "my-workflow" mycommand --flag arg
+    assert_success
+    assert_output --partial "expected text"
+}
+
+# bats test_tags=uat,uat:my-workflow
+@test "UAT: JSON output is valid" {
+    uat_capture "my-workflow" mycommand --json
+    assert_success
+    assert_valid_json
+    assert_no_banner_corruption json
+}
+```
+
+### Available Helpers (`lib/uat-helpers.bash`)
+
+| Function | Purpose |
+|----------|---------|
+| `uat_setup` | Create output capture directory and session log |
+| `uat_capture SCENARIO CMD...` | Run command, capture output to named log, set `$output`/`$status` |
+| `uat_log MSG` | Append timestamped message to session log |
+| `assert_valid_json` | Validate `$output` is parseable JSON |
+| `assert_valid_csv [COLS]` | Validate CSV structure and column consistency |
+| `assert_empty_state_message` | Verify non-blank "no data" message |
+| `assert_no_banner_corruption FMT` | Verify structured output has no version banner |
+
+### Running UAT
+
+```bash
+# All UAT scenarios (default OS)
+make -C tests uat
+
+# Verbose output
+make -C tests uat-verbose
+
+# Specific category via BATS tags
+./tests/run-tests.sh --filter-tags "uat:ban-lifecycle" -- /opt/tests/uat/
+
+# Specific file
+./tests/run-tests.sh -- /opt/tests/uat/01-workflow-a.bats
+```
+
+### Tag Convention
+
+- Tag all UAT tests with `uat` for universal filtering
+- Add category sub-tags: `uat:ban-lifecycle`, `uat:output-quality`, etc.
+- Syntax: `# bats test_tags=uat,uat:category-name`
+
 ## Using batsman in Your Own Project
 
 batsman can be used by any Bash project that needs cross-OS BATS testing.
