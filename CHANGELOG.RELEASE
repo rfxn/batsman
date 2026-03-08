@@ -1,24 +1,12 @@
 - 1.2.0 | Mar 08 2026:
-[Change] Updated README.md pinning examples and CI workflow references from v1.0.3
-      to v1.2.0
-[Change] Extract shared _uat_json_extract helper for JSON dot-notation traversal;
-      assert_json_field and assert_json_array_length now share traversal logic
-[Fix] README: add all 12 new UAT helper functions to Available Helpers table
-[Fix] uat_cleanup_processes test: replace always-true assertion with proper
-      kill -0 / assert_failure check that verifies process was killed
-[New] assert_json_field — extract and assert JSON field values with dot-notation
-      for nested fields; uses python3 -c for parsing
-[New] assert_json_array_length — assert JSON array length at a given key path
-[New] assert_csv_row_count — assert CSV data row count excluding header
-[New] assert_csv_header — assert CSV header contains expected column names
-[New] assert_output_line_count — assert output line count (exact or min/max range)
-[New] assert_file_perms — assert file permissions via stat -c '%a'
-[New] assert_process_running / assert_process_not_running — process existence
-      assertions via pgrep -f
-[New] uat_wait_for_condition — poll a command until success or timeout with
-      configurable UAT_POLL_INTERVAL (default 0.5s); hard timeout protection
-[New] uat_wait_for_file — wait for file to exist and be non-empty
-[New] uat_wait_for_log — wait for pattern to appear in log file
-[New] uat_cleanup_processes — graceful pkill + SIGKILL fallback with wait;
-      tolerates already-dead processes
-[New] 32 new self-tests for all 12 new UAT helper functions; 194 tests total
+[New] 12 UAT helper functions: assert_json_field, assert_json_array_length
+      (JSON validation with dot-notation); assert_csv_row_count,
+      assert_csv_header (CSV validation); assert_output_line_count,
+      assert_file_perms, assert_process_running/not_running (general
+      assertions); uat_wait_for_condition, uat_wait_for_file,
+      uat_wait_for_log (polling replacements for hardcoded sleep);
+      uat_cleanup_processes (graceful process teardown with SIGKILL fallback)
+[New] 32 new self-tests for all UAT helper functions; 194 tests total
+[Fix] uat_cleanup_processes test: fix always-true assertion
+[Fix] assert_output_line_count: use arithmetic coercion for wc whitespace trim
+[Change] Updated README.md version references to v1.2.0

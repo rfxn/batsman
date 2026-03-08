@@ -324,9 +324,8 @@ assert_output_line_count() {
 
     local actual_count
     actual_count="$(echo "$output" | wc -l)"
-    # Trim whitespace from wc output (some implementations pad)
-    actual_count="${actual_count## }"
-    actual_count="${actual_count%% }"
+    # Strip whitespace from wc output (some implementations pad with spaces)
+    actual_count=$(( actual_count + 0 ))
 
     if [ -z "$max_count" ]; then
         # Exact match
@@ -443,6 +442,7 @@ uat_wait_for_log() {
     local deadline=$(( start_time + timeout_sec ))
 
     while true; do
+        # suppress grep errors on binary/permission issues; -f guard handles missing file
         if [ -f "$file" ] && grep -q "$pattern" "$file" 2>/dev/null; then
             return 0
         fi
