@@ -13,7 +13,6 @@ https://github.com/rfxn/batsman
 [New] 32 new self-tests for all UAT helper functions; 194 tests total
 [Fix] uat_cleanup_processes test: fix always-true assertion
 [Fix] assert_output_line_count: use arithmetic coercion for wc whitespace trim
-[Change] Updated README.md version references to v1.2.0
 
 - 1.1.0 | Mar 07 2026:
 [New] UAT helper library (lib/uat-helpers.bash) — shared assertion primitives
