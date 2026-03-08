@@ -506,6 +506,18 @@ teardown_file() {
 | `assert_valid_csv [COLS]` | Validate CSV structure and column consistency |
 | `assert_empty_state_message` | Verify non-blank "no data" message |
 | `assert_no_banner_corruption FMT` | Verify structured output has no version banner |
+| `assert_json_field KEY EXPECTED` | Assert JSON field value with dot-notation for nested fields |
+| `assert_json_array_length KEY COUNT` | Assert JSON array length at a given key path |
+| `assert_csv_row_count COUNT` | Assert CSV data row count (excluding header) |
+| `assert_csv_header COLS...` | Assert CSV header contains expected column names |
+| `assert_output_line_count MIN [MAX]` | Assert output line count (exact or range) |
+| `assert_file_perms FILE OCTAL` | Assert file permission matches expected octal |
+| `assert_process_running PATTERN` | Assert process matching pattern exists |
+| `assert_process_not_running PATTERN` | Assert no process matching pattern exists |
+| `uat_wait_for_condition CMD TIMEOUT` | Poll command until success or timeout |
+| `uat_wait_for_file FILE TIMEOUT` | Wait for file to exist and be non-empty |
+| `uat_wait_for_log FILE PATTERN TIMEOUT` | Wait for pattern to appear in log file |
+| `uat_cleanup_processes PATTERN` | Kill matching processes with graceful SIGKILL fallback |
 
 ### Running UAT
 

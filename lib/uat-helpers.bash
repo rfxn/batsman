@@ -14,6 +14,7 @@
 #   assert_valid_csv [COLS]      — Validate CSV structure and column consistency
 #   assert_empty_state_message   — Verify non-blank "no data" message
 #   assert_no_banner_corruption FMT — Verify structured output is clean
+#   _uat_json_extract KEY [MODE] — Shared JSON dot-notation traversal (internal)
 #   assert_json_field KEY EXP    — Assert JSON field value (dot-notation)
 #   assert_json_array_length K N — Assert JSON array length at key
 #   assert_csv_row_count COUNT   — Assert CSV data rows (excluding header)
@@ -172,10 +173,47 @@ assert_no_banner_corruption() {
     esac
 }
 
+# _uat_json_extract KEY [MODE] — Extract a value from JSON $output via dot-notation
+# Traverses nested objects/arrays using python3 -c. Shared by assert_json_field
+# and assert_json_array_length.
+# KEY: dot-separated path (e.g., "status.code", "items.0.name").
+#      Use "" for the top-level value (returns data as-is).
+# MODE: "value" (default) — print the traversed value
+#       "len"  — print len() of the traversed value (must be a list)
+# Returns 0 on success, 1 on extraction/type failure.
+_uat_json_extract() {
+    local key="$1"
+    local mode="${2:-value}"
+
+    echo "$output" | python3 -c "
+import sys, json
+data = json.load(sys.stdin)
+key = '${key}'
+if key == '':
+    val = data
+else:
+    keys = key.split('.')
+    val = data
+    for k in keys:
+        if isinstance(val, list):
+            val = val[int(k)]
+        else:
+            val = val[k]
+mode = '${mode}'
+if mode == 'len':
+    if not isinstance(val, list):
+        print('NOT_ARRAY', file=sys.stderr)
+        sys.exit(1)
+    print(len(val))
+else:
+    print(val)
+" 2>&1
+}
+
 # assert_json_field KEY EXPECTED — Assert a JSON field value matches expected
 # KEY supports dot-notation for nested fields (e.g., "status.code").
 # Operates on $output (set by BATS 'run' or direct assignment).
-# Uses python3 -c for JSON parsing (available in all target containers).
+# Uses _uat_json_extract for JSON parsing.
 assert_json_field() {
     local key="$1"
     local expected="$2"
@@ -186,18 +224,7 @@ assert_json_field() {
     fi
 
     local actual
-    actual="$(echo "$output" | python3 -c "
-import sys, json
-data = json.load(sys.stdin)
-keys = '${key}'.split('.')
-val = data
-for k in keys:
-    if isinstance(val, list):
-        val = val[int(k)]
-    else:
-        val = val[k]
-print(val)
-" 2>&1)" || {
+    actual="$(_uat_json_extract "$key" "value")" || {
         echo "assert_json_field: failed to extract key '$key' from JSON" >&2
         echo "Python error: $actual" >&2
         echo "Output was: $(echo "$output" | head -3)" >&2
@@ -212,7 +239,7 @@ print(val)
 
 # assert_json_array_length KEY COUNT — Assert JSON array length at given key
 # KEY is the field name containing an array. Use "" for top-level array.
-# Operates on $output.
+# Operates on $output. Uses _uat_json_extract for JSON traversal.
 assert_json_array_length() {
     local key="$1"
     local expected_count="$2"
@@ -223,26 +250,7 @@ assert_json_array_length() {
     fi
 
     local actual_count
-    actual_count="$(echo "$output" | python3 -c "
-import sys, json
-data = json.load(sys.stdin)
-key = '${key}'
-if key == '':
-    arr = data
-else:
-    keys = key.split('.')
-    val = data
-    for k in keys:
-        if isinstance(val, list):
-            val = val[int(k)]
-        else:
-            val = val[k]
-    arr = val
-if not isinstance(arr, list):
-    print('NOT_ARRAY', file=sys.stderr)
-    sys.exit(1)
-print(len(arr))
-" 2>&1)" || {
+    actual_count="$(_uat_json_extract "$key" "len")" || {
         echo "assert_json_array_length: failed to get array length for key '$key'" >&2
         echo "Output was: $(echo "$output" | head -3)" >&2
         return 1

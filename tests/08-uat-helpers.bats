@@ -490,10 +490,11 @@ teardown() {
     # Verify it started
     kill -0 "$pid" 2>/dev/null
     run uat_cleanup_processes "sleep 120"
-    # Process should be gone
-    ! kill -0 "$pid" 2>/dev/null || true  # already dead — safe to ignore
-    wait "$pid" 2>/dev/null || true  # reap zombie — may fail if already reaped
     assert_success
+    # Verify the process was actually killed
+    run kill -0 "$pid"
+    assert_failure
+    wait "$pid" 2>/dev/null || true  # reap zombie — may fail if already reaped
 }
 
 @test "uat_cleanup_processes tolerates no matching processes" {

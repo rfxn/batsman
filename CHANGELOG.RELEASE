@@ -1,4 +1,9 @@
 - 1.2.0 | Mar 08 2026:
+[Change] Extract shared _uat_json_extract helper for JSON dot-notation traversal;
+      assert_json_field and assert_json_array_length now share traversal logic
+[Fix] README: add all 12 new UAT helper functions to Available Helpers table
+[Fix] uat_cleanup_processes test: replace always-true assertion with proper
+      kill -0 / assert_failure check that verifies process was killed
 [New] assert_json_field — extract and assert JSON field values with dot-notation
       for nested fields; uses python3 -c for parsing
 [New] assert_json_array_length — assert JSON array length at a given key path
