@@ -1,10 +1,17 @@
-- 1.1.0 | Mar 07 2026:
-[New] UAT helper library (lib/uat-helpers.bash) — shared assertion primitives
-      for BATS-based UAT scenarios: uat_setup, uat_capture, assert_valid_json,
-      assert_valid_csv, assert_empty_state_message, assert_no_banner_corruption
-[New] UAT Makefile targets (uat, uat-verbose) — run tests/uat/ scenarios via
-      batsman_run_direct() path passthrough; invisible to 'make test'
-[New] 25 new self-tests for UAT helper library — setup, capture, log, JSON/CSV
-      validation, empty-state, banner corruption detection; 162 tests total
-[New] README: UAT Scenarios section — directory structure, writing scenarios,
-      available helpers, tag convention, running UAT
+- 1.2.0 | Mar 08 2026:
+[New] assert_json_field — extract and assert JSON field values with dot-notation
+      for nested fields; uses python3 -c for parsing
+[New] assert_json_array_length — assert JSON array length at a given key path
+[New] assert_csv_row_count — assert CSV data row count excluding header
+[New] assert_csv_header — assert CSV header contains expected column names
+[New] assert_output_line_count — assert output line count (exact or min/max range)
+[New] assert_file_perms — assert file permissions via stat -c '%a'
+[New] assert_process_running / assert_process_not_running — process existence
+      assertions via pgrep -f
+[New] uat_wait_for_condition — poll a command until success or timeout with
+      configurable UAT_POLL_INTERVAL (default 0.5s); hard timeout protection
+[New] uat_wait_for_file — wait for file to exist and be non-empty
+[New] uat_wait_for_log — wait for pattern to appear in log file
+[New] uat_cleanup_processes — graceful pkill + SIGKILL fallback with wait;
+      tolerates already-dead processes
+[New] 32 new self-tests for all 12 new UAT helper functions; 194 tests total
