@@ -2,6 +2,13 @@ batsman — Shared BATS Test Infrastructure
 Copyright (C) 2002-2026 R-fx Networks <proj@rfxn.com>
 https://github.com/rfxn/batsman
 
+- 1.2.1 | Mar 16 2026:
+[Fix] Add inline comments to all || true / 2>/dev/null in cleanup functions
+[Fix] _uat_json_extract: pass key/mode via sys.argv instead of string interpolation
+[Fix] Remove dead total_pass variable from parallel TAP counting
+[Fix] Document python3 dependency for JSON UAT helpers in README
+[New] Test for --clean exit code preservation on test failure; 195 tests total
+
 - 1.2.0 | Mar 08 2026:
 [New] 12 UAT helper functions: assert_json_field, assert_json_array_length
       (JSON validation with dot-notation); assert_csv_row_count,
