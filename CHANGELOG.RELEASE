@@ -1,6 +1,4 @@
-- 1.2.1 | Mar 16 2026:
-[Fix] Add inline comments to all || true / 2>/dev/null in cleanup functions
-[Fix] _uat_json_extract: pass key/mode via sys.argv instead of string interpolation
-[Fix] Remove dead total_pass variable from parallel TAP counting
-[Fix] Document python3 dependency for JSON UAT helpers in README
-[New] Test for --clean exit code preservation on test failure; 195 tests total
+- 1.2.2 | Mar 16 2026:
+
+-- Bug Fixes --
+[Fix] Add inline comments to remaining 2>/dev/null instances (convention compliance)
