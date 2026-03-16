@@ -417,7 +417,7 @@ batsman_run_parallel() {
     if [ "$_batsman_parallel_n" -gt 0 ]; then
         num_groups="$_batsman_parallel_n"
     else
-        num_groups=$(nproc 2>/dev/null || sysctl -n hw.logicalcpu 2>/dev/null || echo 1)
+        num_groups=$(nproc 2>/dev/null || sysctl -n hw.logicalcpu 2>/dev/null || echo 1)  # fallback chain: Linux nproc → macOS sysctl → safe default; stderr suppressed on missing commands
         [ "$num_groups" -lt 1 ] && num_groups=1
     fi
 

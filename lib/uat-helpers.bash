@@ -84,7 +84,7 @@ assert_valid_json() {
         echo "assert_valid_json: output is empty" >&2
         return 1
     fi
-    if ! echo "$output" | python3 -m json.tool > /dev/null 2>&1; then
+    if ! echo "$output" | python3 -m json.tool > /dev/null 2>&1; then  # stderr suppressed — we report our own error message below
         echo "assert_valid_json: invalid JSON output:" >&2
         echo "$output" | head -5 >&2
         return 1
@@ -274,8 +274,7 @@ assert_csv_row_count() {
 
     # Count non-empty lines excluding header (line 1)
     local actual_count
-    # grep -c returns exit 1 when no lines match — fallback to 0; stderr suppressed for clean output
-    actual_count="$(echo "$output" | tail -n +2 | grep -c '.' 2>/dev/null)" || actual_count=0
+    actual_count="$(echo "$output" | tail -n +2 | grep -c '.' 2>/dev/null)" || actual_count=0  # grep -c exits 1 on zero matches; stderr suppressed for clean output
 
     if [ "$actual_count" -ne "$expected_count" ]; then
         echo "assert_csv_row_count: expected $expected_count data rows, got $actual_count" >&2
@@ -442,8 +441,7 @@ uat_wait_for_log() {
     local deadline=$(( start_time + timeout_sec ))
 
     while true; do
-        # suppress grep errors on binary/permission issues; -f guard handles missing file
-        if [ -f "$file" ] && grep -q "$pattern" "$file" 2>/dev/null; then
+        if [ -f "$file" ] && grep -q "$pattern" "$file" 2>/dev/null; then  # suppress grep stderr on binary/permission issues; -f guard handles missing file
             return 0
         fi
         if [ "$SECONDS" -ge "$deadline" ]; then
