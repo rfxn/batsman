@@ -250,3 +250,14 @@ unrelated-image:latest"
     [[ "$logged" == *"rmi test-project-test-debian12"* ]]
     [[ "$logged" == *"rmi test-project-base-debian12"* ]]
 }
+
+@test "run: --clean preserves non-zero exit code on test failure" {
+    DOCKER_EXIT_CODE=1
+    run batsman_run --clean
+    [ "$status" -ne 0 ]
+    local logged
+    logged=$(cat "$DOCKER_LOG")
+    # Cleanup still ran despite failure
+    [[ "$logged" == *"rmi test-project-test-debian12"* ]]
+    [[ "$logged" == *"rmi test-project-base-debian12"* ]]
+}

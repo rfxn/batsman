@@ -293,8 +293,8 @@ batsman_build() {
     docker build --build-arg "BASE_IMAGE=$base_tag" \
         -f "$project_dockerfile" -t "$_batsman_image_tag" "$BATSMAN_PROJECT_DIR"
 
-    # Prune dangling images left by tag replacement (always safe, silent)
-    docker image prune -f >/dev/null 2>&1 || true
+    # Prune dangling images left by tag replacement
+    docker image prune -f >/dev/null 2>&1 || true  # prune may find nothing
 }
 
 # ---------------------------------------------------------------------------
@@ -330,14 +330,14 @@ batsman_clean() {
         local img
         # Remove test images first (depend on base), then base images
         for img in $(docker images --format '{{.Repository}}:{{.Tag}}' | \
-                     grep -E "^${BATSMAN_PROJECT}-test-" 2>/dev/null); do
+                     grep -E "^${BATSMAN_PROJECT}-test-" 2>/dev/null); do  # grep may find no matches
             echo "  Removing $img"
-            docker rmi "$img" 2>/dev/null || true
+            docker rmi "$img" 2>/dev/null || true  # image may already be removed
         done
         for img in $(docker images --format '{{.Repository}}:{{.Tag}}' | \
-                     grep -E "^${BATSMAN_PROJECT}-base-" 2>/dev/null); do
+                     grep -E "^${BATSMAN_PROJECT}-base-" 2>/dev/null); do  # grep may find no matches
             echo "  Removing $img"
-            docker rmi "$img" 2>/dev/null || true
+            docker rmi "$img" 2>/dev/null || true  # image may already be removed
         done
     else
         echo "=== Removing ${BATSMAN_PROJECT} images for ${_batsman_os} ==="
@@ -347,13 +347,13 @@ batsman_clean() {
         local base_img="${BATSMAN_PROJECT}-base-${base_os}"
 
         echo "  Removing $test_img"
-        docker rmi "$test_img" 2>/dev/null || true
+        docker rmi "$test_img" 2>/dev/null || true  # image may not exist
         echo "  Removing $base_img"
-        docker rmi "$base_img" 2>/dev/null || true
+        docker rmi "$base_img" 2>/dev/null || true  # image may not exist
     fi
 
     # Prune dangling images after removal
-    docker image prune -f >/dev/null 2>&1 || true
+    docker image prune -f >/dev/null 2>&1 || true  # prune may find nothing
 }
 
 # ---------------------------------------------------------------------------
@@ -464,7 +464,7 @@ batsman_run_parallel() {
     # Cleanup trap: remove named containers and temp dir on interrupt/exit
     _batsman_cleanup() {
         for i in $(seq 0 $(( num_groups - 1 ))); do
-            docker rm -f "${BATSMAN_PROJECT}-${_batsman_os}-${run_id}-g${i}" >/dev/null 2>&1 || true
+            docker rm -f "${BATSMAN_PROJECT}-${_batsman_os}-${run_id}-g${i}" >/dev/null 2>&1 || true  # container may have already exited
         done
         rm -rf "$tmpdir_par"
     }
@@ -518,7 +518,6 @@ batsman_run_parallel() {
 
     # Display output with group headers
     local total_tests=0
-    local total_pass=0
     local total_fail=0
     local short_names status name line
     for i in $(seq 0 $(( num_groups - 1 ))); do
@@ -546,7 +545,6 @@ batsman_run_parallel() {
             case "$line" in
                 ok\ *)
                     total_tests=$(( total_tests + 1 ))
-                    total_pass=$(( total_pass + 1 ))
                     ;;
                 not\ ok\ *)
                     total_tests=$(( total_tests + 1 ))

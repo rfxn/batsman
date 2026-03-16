@@ -78,7 +78,7 @@ uat_log() {
 # ---------------------------------------------------------------------------
 
 # assert_valid_json — Validate that $output is parseable JSON
-# Uses python3 -m json.tool (available in all modern containers)
+# Requires python3 — not in batsman base images; consumer Dockerfiles must install it
 assert_valid_json() {
     if [ -z "$output" ]; then
         echo "assert_valid_json: output is empty" >&2
@@ -188,7 +188,8 @@ _uat_json_extract() {
     echo "$output" | python3 -c "
 import sys, json
 data = json.load(sys.stdin)
-key = '${key}'
+key = sys.argv[1]
+mode = sys.argv[2]
 if key == '':
     val = data
 else:
@@ -199,7 +200,6 @@ else:
             val = val[int(k)]
         else:
             val = val[k]
-mode = '${mode}'
 if mode == 'len':
     if not isinstance(val, list):
         print('NOT_ARRAY', file=sys.stderr)
@@ -207,7 +207,7 @@ if mode == 'len':
     print(len(val))
 else:
     print(val)
-" 2>&1
+" "$key" "$mode" 2>&1
 }
 
 # assert_json_field KEY EXPECTED — Assert a JSON field value matches expected

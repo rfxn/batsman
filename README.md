@@ -497,6 +497,11 @@ teardown_file() {
 
 ### Available Helpers (`lib/uat-helpers.bash`)
 
+**Dependency:** JSON assertion helpers (`assert_valid_json`, `assert_json_field`,
+`assert_json_array_length`) require `python3` in the container. batsman base
+images do not install python3 — add it to your project Dockerfile if using
+these helpers.
+
 | Function | Purpose |
 |----------|---------|
 | `uat_setup` | Create output capture directory and session log |
