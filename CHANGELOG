@@ -2,6 +2,11 @@ batsman — Shared BATS Test Infrastructure
 Copyright (C) 2002-2026 R-fx Networks <proj@rfxn.com>
 https://github.com/rfxn/batsman
 
+- 1.2.2 | Mar 23 2026:
+[Change] README: floor-level documentation convention compliance — numbered sections,
+      centered flat-square badges, exit codes table, copyright blockquote, structured
+      Quick Start with verify step
+
 - 1.2.2 | Mar 16 2026:
 [Fix] Add inline comments to remaining 2>/dev/null instances (convention compliance)
 

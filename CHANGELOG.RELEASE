@@ -1,4 +1,9 @@
-- 1.2.2 | Mar 16 2026:
+- 1.2.2 | Mar 23 2026:
+
+-- Changes --
+[Change] README: floor-level documentation convention compliance — numbered sections,
+      centered flat-square badges, exit codes table, copyright blockquote, structured
+      Quick Start with verify step
 
 -- Bug Fixes --
 [Fix] Add inline comments to remaining 2>/dev/null instances (convention compliance)

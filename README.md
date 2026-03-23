@@ -1,149 +1,49 @@
-# batsman — Shared BATS Test Infrastructure
+# batsman
 
-[![Version](https://img.shields.io/github/v/tag/rfxn/batsman?label=version&sort=semver)](https://github.com/rfxn/batsman/releases)
-[![Self-Tests](https://github.com/rfxn/batsman/actions/workflows/self-test.yml/badge.svg)](https://github.com/rfxn/batsman/actions/workflows/self-test.yml)
-[![License: GPL v2](https://img.shields.io/badge/license-GPLv2-blue.svg)](https://www.gnu.org/licenses/old-licenses/gpl-2.0.html)
-[![GitHub Issues](https://img.shields.io/github/issues/rfxn/batsman)](https://github.com/rfxn/batsman/issues)
-[![Shell](https://img.shields.io/badge/shell-bash-green.svg)](https://www.gnu.org/software/bash/)
-[![BATS](https://img.shields.io/badge/bats--core-1.13.0-orange.svg)](https://github.com/bats-core/bats-core)
+<p align="center">
+  <a href="https://github.com/rfxn/batsman/actions/workflows/self-test.yml"><img src="https://github.com/rfxn/batsman/actions/workflows/self-test.yml/badge.svg?style=flat-square" alt="CI"></a>
+  <a href="CHANGELOG"><img src="https://img.shields.io/badge/version-1.2.2-blue.svg?style=flat-square" alt="Version"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-GPL_v2-green.svg?style=flat-square" alt="License"></a>
+  <a href="https://www.gnu.org/software/bash/"><img src="https://img.shields.io/badge/shell-bash-4EAA25.svg?style=flat-square" alt="Shell"></a>
+  <a href="https://github.com/bats-core/bats-core"><img src="https://img.shields.io/badge/bats--core-1.13.0-orange.svg?style=flat-square" alt="BATS"></a>
+</p>
 
-Shared BATS test infrastructure for R-fx Networks projects.
-Consumed as a git submodule at `tests/infra/` in each project.
+**BATS test infrastructure for rfxn projects** -- Docker-based multi-OS
+test execution with parallel orchestration and Makefile integration.
 
-Copyright (C) 2002-2026 R-fx Networks <proj@rfxn.com>
+> (C) 2002-2026, R-fx Networks <proj@rfxn.com>
+> Licensed under GNU GPL v2
 
 ## Quick Start
 
-1. Add batsman as a submodule:
-   ```bash
-   cd your-project
-   git submodule add https://github.com/rfxn/batsman.git tests/infra
-   git submodule update --init --recursive
-   ```
+```bash
+# 1. Add batsman as a submodule
+cd your-project
+git submodule add https://github.com/rfxn/batsman.git tests/infra
+git submodule update --init --recursive
 
-2. Create a project Dockerfile (`tests/Dockerfile`):
-   ```dockerfile
-   ARG BASE_IMAGE=myproject-base-debian12
-   FROM ${BASE_IMAGE}
-   RUN apt-get update && apt-get install -y --no-install-recommends your-packages
-   COPY . /opt/project-src/
-   RUN cd /opt/project-src && sh install.sh
-   COPY tests/ /opt/tests/
-   WORKDIR /opt/tests
-   CMD ["bats", "--formatter", "tap", "/opt/tests/"]
-   ```
+# 2. Create tests/Dockerfile (see Integration Guide for templates)
+# 3. Create tests/run-tests.sh and tests/Makefile (see Integration Guide)
 
-3. Create `tests/run-tests.sh` (thin wrapper):
-   ```bash
-   #!/bin/bash
-   set -e
-   SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-   BATSMAN_PROJECT="myproject"
-   BATSMAN_PROJECT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
-   BATSMAN_TESTS_DIR="$SCRIPT_DIR"
-   BATSMAN_INFRA_DIR="$SCRIPT_DIR/infra"
-   BATSMAN_DEFAULT_OS="debian12"
-   BATSMAN_CONTAINER_TEST_PATH="/opt/tests"
-   BATSMAN_SUPPORTED_OS="debian12 centos7 rocky8 rocky9 ubuntu2004 ubuntu2404"
-   source "$BATSMAN_INFRA_DIR/lib/run-tests-core.sh"
-   batsman_run "$@"
-   ```
+# 4. Run tests on the default OS (debian12)
+make -C tests test
 
-4. Create `tests/Makefile`:
-   ```makefile
-   BATSMAN_OS_MODERN := debian12 rocky9 ubuntu2404
-   BATSMAN_OS_LEGACY := centos7 rocky8 ubuntu2004
-   BATSMAN_OS_DEEP   :=
-   BATSMAN_OS_EXTRA  :=
-   BATSMAN_OS_ALL    := $(BATSMAN_OS_MODERN) $(BATSMAN_OS_LEGACY) $(BATSMAN_OS_DEEP) $(BATSMAN_OS_EXTRA)
-   BATSMAN_RUN_TESTS := ./run-tests.sh
-   BATSMAN_PROJECT   := myproject
-   include infra/include/Makefile.tests
-   ```
+# 5. Verify a specific OS target
+make -C tests test-rocky9
+```
 
-5. Run tests:
-   ```bash
-   make -C tests test
-   ```
+## 1. Introduction
 
-## How It Works
+batsman is the shared BATS test infrastructure for all R-fx Networks
+projects. It provides base OS Docker images, a parallel test orchestration
+engine, a parameterized Makefile include, and a reusable GitHub Actions
+CI workflow. Consumer projects add batsman as a git submodule at
+`tests/infra/` and source its library to run tests across multiple OS
+targets.
 
-### Two-Phase Docker Build
+### 1.1 Supported Systems
 
-batsman uses a two-phase Docker build to separate base OS infrastructure from
-project-specific dependencies:
-
-- **Phase 1 (base image):** Built from batsman's `dockerfiles/Dockerfile.<os>`.
-  Installs system packages, common utilities, and BATS. Tagged as
-  `<project>-base-<os>` (e.g., `apf-base-debian12`).
-
-- **Phase 2 (project image):** Built from the project's own
-  `tests/Dockerfile.<os>`. Uses `ARG BASE_IMAGE` / `FROM ${BASE_IMAGE}` to
-  layer on project-specific packages, install the project, and copy test files.
-
-This separation means base images are cached and shared across CI runs, while
-project images rebuild only when project code changes.
-
-### Parallel Test Orchestration
-
-`lib/run-tests-core.sh` is a sourced library that provides:
-
-- **Round-robin distribution:** `.bats` files are distributed across N Docker
-  containers (default: `nproc`). Each container runs a subset of tests
-  independently.
-- **TAP aggregation:** Output from all containers is collected and merged into
-  a single TAP stream.
-- **Named containers:** Each container gets a deterministic name
-  (`<project>-<os>-<pid>-g<N>`) for easy debugging. Containers are cleaned up
-  on exit, including on `SIGINT`/`SIGTERM`.
-- **Formatter restriction:** Parallel mode forces `tap` formatter for TAP
-  stream aggregation. The `--formatter` option applies only to sequential and
-  direct modes. Use `make test-verbose` (sequential) for pretty-formatted output.
-- **Sequential fallback:** When `--parallel` is not passed, tests run in a
-  single container.
-
-### Image Lifecycle
-
-Docker images accumulate across test runs. batsman provides opt-in cleanup:
-
-- **Auto-prune:** After every build, dangling images (orphaned by tag
-  replacement) are automatically pruned. This is silent and always safe.
-- **`--clean` flag:** Removes the base and test images for the target OS after
-  the test run completes. Test exit codes are preserved — cleanup never masks
-  failures.
-- **`batsman_clean()`:** Public function callable from scripts with three modes:
-  no args (current OS), `--all` (all project images), `--dangling-only`.
-- **Makefile targets:** `clean` (current project), `clean-all` (all batsman
-  projects), `clean-dangling` (dangling only).
-
-### CI: Reusable Workflow
-
-`.github/workflows/test.yml` is a reusable GitHub Actions workflow called via
-`workflow_call`. It:
-
-1. Checks out the project with `submodules: recursive`
-2. Sets up Docker Buildx with the `docker-container` driver
-3. Builds the base image with GHA cache (`type=gha`)
-4. Builds the project image with plain `docker build` (sees the loaded base)
-5. Runs tests in the project image
-
-The hybrid approach (docker-container for cached base build, plain docker for
-project build) works around limitations with `type=gha` cache on older Docker
-versions.
-
-**JUnit reporting:** When `reports: true` (default), each OS job generates a
-JUnit XML report via `--report-formatter junit`, uploads it as a GitHub
-artifact (14-day retention), and writes a test summary table to the job
-summary page.
-
-**Concurrency control:** Each OS job runs in a concurrency group keyed by
-`<project-name>-<git-ref>-<os>`. Rapid pushes to the same branch auto-cancel
-superseded runs per-OS. Callers can override the prefix with the
-`concurrency-group` input.
-
-## Supported OS Targets
-
-batsman provides 9 base OS images spanning three tiers plus an extra tier:
+batsman provides 9 base OS images spanning three tiers plus an extra tier.
 
 | Target | Base Image | Package Manager | Tier | Notes |
 |--------|-----------|-----------------|------|-------|
@@ -157,149 +57,116 @@ batsman provides 9 base OS images spanning three tiers plus an extra tier:
 | ubuntu1204 | `ubuntu:12.04` | apt-get | Deep Legacy | EOL, old-releases repos, TLS fallback |
 | rocky10 | `rockylinux:10` | dnf | Extra | |
 
-## OS Tier Architecture
+### 1.2 Requirements
 
-Tiers group OS targets by age and compatibility characteristics:
+- Docker (with BuildKit support)
+- GNU Make
+- Bash 4.1+
+- Git (for submodule)
 
-**Modern** — Current production targets. Full TLS support, modern package
-managers, Bash 5.x. These run in CI by default for all projects.
+### 1.3 Project Structure
 
-**Legacy** — Older but still commonly deployed. EOL repositories may be needed
-(CentOS 7 uses `vault.centos.org`). Bash 4.2+. These run in CI to catch
-compatibility regressions.
-
-**Deep Legacy** — CentOS 6 (Bash 4.1, kernel 2.6.32) and Ubuntu 12.04 (Bash
-4.2). These define the portability floor:
-- `wget` may not support TLS 1.2+ — `install-bats.sh` provides TLS fallback
-  modes using `wget --no-check-certificate` and `curl -sSL -k` with
-  OS-specific ordering (see `TLS_FALLBACK` in Configuration Reference).
-  SHA256 checksums verify download integrity regardless of TLS mode.
-- EOL repositories: `vault.centos.org` for CentOS 6, `old-releases.ubuntu.com`
-  for Ubuntu 12.04.
-- No systemd — SysV init only.
-
-**Extra** — Targets not included in CI by default. Available for manual testing
-via `make -C tests test-<os>`. Rocky 10 is in this tier pending stable release.
-Projects may also use Extra for non-OS variants (e.g., LMD's `yara-x` target).
-
-### Package Manager Differences
-
-| OS Family | Manager | Install Command | Notes |
-|-----------|---------|----------------|-------|
-| Debian/Ubuntu | apt-get | `apt-get install -y --no-install-recommends` | |
-| CentOS 6/7 | yum | `yum install -y` | |
-| Rocky 8/9 (minimal) | microdnf | `microdnf install -y` | No `--allowerasing` |
-| Rocky 10 | dnf | `dnf install -y --allowerasing` | Full dnf |
-
-**Note:** Rocky 8/9 minimal images ship `coreutils-single` which conflicts
-with `coreutils` via `microdnf`. Omit `coreutils` from package lists on these
-targets — `coreutils-single` provides equivalent commands.
-
-## Integration Guide
-
-### Project Dockerfile Pattern
-
-Each OS needs a project Dockerfile. The default target (debian12) uses
-`tests/Dockerfile`; others use `tests/Dockerfile.<os>`.
-
-```dockerfile
-ARG BASE_IMAGE=myproject-base-debian12
-FROM ${BASE_IMAGE}
-
-# Project-specific packages only — base utilities are in the base image
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    iptables iproute2
-
-# Install project
-COPY . /opt/project-src/
-RUN cd /opt/project-src && sh install.sh
-
-# Copy tests
-COPY tests/ /opt/tests/
-WORKDIR /opt/tests
-CMD ["bats", "--formatter", "tap", "/opt/tests/"]
+```
+dockerfiles/Dockerfile.<os>       # 9 base OS images
+include/Makefile.tests            # Parameterized Make include for consumers
+lib/run-tests-core.sh             # Parallel test orchestration engine
+lib/uat-helpers.bash              # UAT assertion helper library
+scripts/install-bats.sh           # BATS installer for Docker images
+.github/workflows/test.yml        # Reusable CI workflow (consumers call this)
+.github/workflows/self-test.yml   # batsman self-test CI
+tests/                            # batsman self-tests
 ```
 
-For RHEL-family targets, use the appropriate package manager:
-```dockerfile
-# Rocky 8/9 (microdnf)
-RUN microdnf install -y iproute && microdnf clean all
+## 2. Installation
 
-# Rocky 10 (dnf)
-RUN dnf install -y --allowerasing iproute && dnf clean all
-
-# CentOS 6/7 (yum)
-RUN yum install -y iproute && yum clean all
-```
-
-### run-tests.sh Wrapper Pattern
-
-The wrapper sets project-specific variables and sources the orchestration
-engine. It should be ~20-30 lines.
+Add batsman as a git submodule pinned to a release tag.
 
 ```bash
-#!/bin/bash
-set -e
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-
-# Required variables
-BATSMAN_PROJECT="myproject"
-BATSMAN_PROJECT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
-BATSMAN_TESTS_DIR="$SCRIPT_DIR"
-BATSMAN_INFRA_DIR="$SCRIPT_DIR/infra"
-BATSMAN_CONTAINER_TEST_PATH="/opt/tests"
-BATSMAN_SUPPORTED_OS="debian12 centos6 centos7 rocky8 rocky9 rocky10 ubuntu1204 ubuntu2004 ubuntu2404"
-
-# Optional variables
-BATSMAN_DOCKER_FLAGS="--privileged"     # Only if needed (e.g., iptables tests)
-BATSMAN_DEFAULT_OS="debian12"
-BATSMAN_BASE_OS_MAP=""                  # e.g., "yara-x=debian12" for variants
-
-source "$BATSMAN_INFRA_DIR/lib/run-tests-core.sh"
-batsman_run "$@"
+cd your-project
+git submodule add https://github.com/rfxn/batsman.git tests/infra
+cd tests/infra
+git fetch --tags
+git checkout v1.2.2
+cd ../..
+git add tests/infra
+git commit -m "Pin batsman submodule to v1.2.2"
 ```
 
-### Makefile Include Pattern
+### 2.1 Upgrading
 
-The project Makefile defines tier groupings and includes `Makefile.tests`:
+Update the submodule to a new tag and update CI workflow references.
 
-```makefile
-BATSMAN_OS_MODERN := debian12 rocky9 ubuntu2404
-BATSMAN_OS_LEGACY := centos7 rocky8 ubuntu2004
-BATSMAN_OS_DEEP   := centos6 ubuntu1204
-BATSMAN_OS_EXTRA  := rocky10
-BATSMAN_OS_ALL    := $(BATSMAN_OS_MODERN) $(BATSMAN_OS_LEGACY) $(BATSMAN_OS_DEEP) $(BATSMAN_OS_EXTRA)
-BATSMAN_RUN_TESTS := ./run-tests.sh
-BATSMAN_PROJECT   := myproject
-
-include infra/include/Makefile.tests
+```bash
+cd tests/infra
+git fetch origin --tags --force
+git checkout v1.2.2
+cd ../..
+git add tests/infra
+git commit -m "Pin batsman submodule to v1.2.2"
 ```
 
-### CI Workflow Caller Pattern
-
-Projects call the reusable workflow from their own CI configuration:
+In CI workflow callers, update the tag reference:
 
 ```yaml
-name: Tests
-on:
-  push:
-    branches: [master, '2.*']
-  pull_request:
-    branches: [master]
-jobs:
-  test:
-    uses: rfxn/batsman/.github/workflows/test.yml@v1.2.2
-    with:
-      project-name: myproject
-      os-matrix: '["debian12","centos7","rocky8","rocky9","ubuntu2004","ubuntu2404"]'
-      docker-run-flags: '--privileged'    # omit if not needed
-      # test-path: '/opt/custom/tests'    # override if non-standard (default: /opt/tests)
-      # reports: false                    # disable JUnit reports (default: true)
+uses: rfxn/batsman/.github/workflows/test.yml@v1.2.2
 ```
 
-## Configuration Reference
+See the [Migration Guide](#8-migration-guide) for version-specific
+upgrade notes.
 
-### install-bats.sh Environment Variables
+### 2.2 Key Files
+
+| File | Purpose |
+|------|---------|
+| `lib/run-tests-core.sh` | Parallel test orchestration engine (sourced by consumer wrappers) |
+| `lib/uat-helpers.bash` | UAT assertion helper library (sourced by UAT test files) |
+| `include/Makefile.tests` | Parameterized GNU Make include with per-OS and tier targets |
+| `scripts/install-bats.sh` | BATS installer with TLS fallback for legacy OS images |
+| `dockerfiles/Dockerfile.<os>` | Base Docker images for each supported OS target |
+| `.github/workflows/test.yml` | Reusable GitHub Actions CI workflow |
+
+## 3. Configuration
+
+batsman is configured entirely through shell variables set in the
+consumer project's `run-tests.sh` wrapper and `Makefile`. There are
+no configuration files to edit.
+
+### 3.1 Orchestration Variables
+
+Variables set in `tests/run-tests.sh` before sourcing `run-tests-core.sh`.
+
+| Variable | Required | Default | Purpose |
+|----------|----------|---------|---------|
+| `BATSMAN_PROJECT` | yes | -- | Image tag prefix and container naming |
+| `BATSMAN_PROJECT_DIR` | yes | -- | Docker build context root |
+| `BATSMAN_TESTS_DIR` | yes | -- | Directory containing `.bats` files |
+| `BATSMAN_INFRA_DIR` | yes | -- | Path to batsman submodule |
+| `BATSMAN_CONTAINER_TEST_PATH` | yes | -- | Test directory path inside container |
+| `BATSMAN_SUPPORTED_OS` | yes | -- | Space-separated list of supported OS targets |
+| `BATSMAN_DOCKER_FLAGS` | no | `""` | Extra `docker run` flags (e.g., `--privileged`) |
+| `BATSMAN_DEFAULT_OS` | no | `debian12` | Default OS when `--os` omitted |
+| `BATSMAN_BASE_OS_MAP` | no | `""` | Variant-to-base mappings (e.g., `"yara-x=debian12"`) |
+| `BATSMAN_TEST_TIMEOUT` | no | -- | Per-test timeout in seconds (overridden by `--timeout`) |
+| `BATSMAN_REPORT_DIR` | no | -- | Host directory for JUnit XML reports (overridden by `--report-dir`) |
+
+### 3.2 Makefile Variables
+
+Variables set in `tests/Makefile` before `include infra/include/Makefile.tests`.
+
+| Variable | Required | Default | Purpose |
+|----------|----------|---------|---------|
+| `BATSMAN_OS_MODERN` | yes | -- | Modern tier OS list |
+| `BATSMAN_OS_LEGACY` | yes | -- | Legacy tier OS list |
+| `BATSMAN_OS_DEEP` | no | -- | Deep legacy tier OS list |
+| `BATSMAN_OS_EXTRA` | no | -- | Extra OS targets (e.g., rocky10, yara-x) |
+| `BATSMAN_OS_ALL` | yes | -- | Combined full OS list |
+| `BATSMAN_RUN_TESTS` | yes | -- | Path to project `run-tests.sh` |
+| `BATSMAN_PROJECT` | no | -- | Project name for image tags (required for `clean` targets) |
+| `PARALLEL_JOBS` | no | `nproc` | Cross-OS parallel job count for `xargs -P` |
+
+### 3.3 BATS Installer Variables
+
+Variables set in Dockerfiles or passed as build args to `install-bats.sh`.
 
 | Variable | Default | Purpose |
 |----------|---------|---------|
@@ -309,87 +176,30 @@ jobs:
 | `BATS_CORE_SHA256` | *(matches pinned version)* | SHA256 checksum for bats-core tarball |
 | `BATS_SUPPORT_SHA256` | *(matches pinned version)* | SHA256 checksum for bats-support tarball |
 | `BATS_ASSERT_SHA256` | *(matches pinned version)* | SHA256 checksum for bats-assert tarball |
-| `TLS_FALLBACK` | `0` | TLS mode: 0=standard wget, 1=wget --no-check-certificate with curl fallback, 2=curl primary with wget fallback |
+| `TLS_FALLBACK` | `0` | TLS mode: 0=standard wget, 1=wget `--no-check-certificate` with curl fallback, 2=curl primary with wget fallback |
 
-### run-tests-core.sh Configuration Variables
+### 3.4 CI Workflow Inputs
 
-| Variable | Required | Purpose |
-|----------|----------|---------|
-| `BATSMAN_PROJECT` | yes | Image tag prefix, container naming |
-| `BATSMAN_PROJECT_DIR` | yes | Docker build context root |
-| `BATSMAN_TESTS_DIR` | yes | Directory containing .bats files |
-| `BATSMAN_INFRA_DIR` | yes | Path to batsman submodule |
-| `BATSMAN_DOCKER_FLAGS` | no | Extra docker run flags (e.g. `--privileged`) |
-| `BATSMAN_DEFAULT_OS` | no | Default OS when --os omitted (default: debian12) |
-| `BATSMAN_CONTAINER_TEST_PATH` | yes | Test directory path inside container |
-| `BATSMAN_SUPPORTED_OS` | yes | Space-separated list of supported OS targets |
-| `BATSMAN_BASE_OS_MAP` | no | Variant-to-base mappings (e.g. `"yara-x=debian12"`) |
-| `BATSMAN_TEST_TIMEOUT` | no | Per-test timeout in seconds; overridden by `--timeout` CLI flag |
-| `BATSMAN_REPORT_DIR` | no | Host directory for JUnit XML reports; overridden by `--report-dir` CLI flag |
-
-### Makefile.tests Variables
-
-| Variable | Required | Purpose |
-|----------|----------|---------|
-| `BATSMAN_OS_MODERN` | yes | Modern tier OS list |
-| `BATSMAN_OS_LEGACY` | yes | Legacy tier OS list |
-| `BATSMAN_OS_DEEP` | no | Deep legacy tier OS list |
-| `BATSMAN_OS_EXTRA` | no | Extra OS targets (e.g. rocky10, yara-x) |
-| `BATSMAN_OS_ALL` | yes | Combined full OS list |
-| `BATSMAN_RUN_TESTS` | yes | Path to project run-tests.sh |
-| `BATSMAN_PROJECT` | no* | Project name for image tags (required for `clean` targets) |
-| `PARALLEL_JOBS` | no | Cross-OS parallel job count for `xargs -P` (default: `nproc`; override via `make ... PARALLEL_JOBS=N`) |
-
-### CI Workflow Inputs
+Inputs for the reusable workflow (`.github/workflows/test.yml`).
 
 | Input | Required | Default | Purpose |
 |-------|----------|---------|---------|
-| `project-name` | yes | — | Project name for image tags |
-| `os-matrix` | yes | — | JSON array of OS targets |
+| `project-name` | yes | -- | Project name for image tags |
+| `os-matrix` | yes | -- | JSON array of OS targets |
 | `docker-run-flags` | no | `""` | Extra docker run flags |
 | `timeout` | no | `15` | Job timeout in minutes |
 | `dockerfile-dir` | no | `tests` | Directory containing project Dockerfiles |
-| `concurrency-group` | no | `""` | Concurrency group prefix (empty = default per-project grouping) |
+| `concurrency-group` | no | `""` | Concurrency group prefix |
 | `test-path` | no | `/opt/tests` | Test directory path inside container |
 | `reports` | no | `true` | Generate JUnit XML reports and upload as artifacts |
 
-## Common Use Cases
+## 4. Usage
 
-### Self-Tests
+batsman provides three interfaces: a shell library (`batsman_run`),
+Make targets, and a reusable CI workflow. All three use the same
+underlying orchestration engine.
 
-batsman includes its own test suite that validates the orchestration engine.
-It bootstraps itself — the engine builds a Docker image from its own base
-Dockerfiles, copies its library into the container, and runs BATS tests
-against it. Unit tests cover argument parsing, variable validation, variant
-mapping, parallel distribution, and file discovery.
-
-```bash
-make -C tests test            # parallel (default)
-make -C tests test-verbose    # pretty output (sequential)
-```
-
-### Make Targets
-
-| Target | Description |
-|--------|-------------|
-| `test` | Default OS, parallel (default goal) |
-| `test-serial` | Default OS, sequential (single container) |
-| `test-verbose` | Default OS, pretty formatter (sequential) |
-| `test-report` | Default OS, parallel, JUnit XML in `reports/` |
-| `test-<os>` | Specific OS, parallel |
-| `test-modern` | Modern tier, sequential across OS |
-| `test-legacy` | Legacy tier, sequential across OS |
-| `test-deep-legacy` | Deep legacy tier, sequential across OS |
-| `test-all` | All tiers, sequential across OS |
-| `test-modern-parallel` | Modern tier, parallel across OS |
-| `test-legacy-parallel` | Legacy tier, parallel across OS |
-| `test-deep-legacy-parallel` | Deep legacy tier, parallel across OS |
-| `test-all-parallel` | All tiers, parallel across OS |
-| `clean` | Remove all images for current project |
-| `clean-all` | Remove all batsman project images across all projects |
-| `clean-dangling` | Prune dangling images only (always safe) |
-
-### Script CLI
+### 4.1 Script CLI
 
 ```bash
 # Run on default OS (parallel)
@@ -416,9 +226,6 @@ make -C tests test-verbose    # pretty output (sequential)
 # Filter tests by tag
 ./tests/run-tests.sh --filter-tags "smoke" --parallel
 
-# Exclude slow-tagged tests
-./tests/run-tests.sh --filter-tags '!slow' --parallel
-
 # Stop on first failure
 ./tests/run-tests.sh --abort --parallel
 
@@ -432,132 +239,221 @@ make -C tests test-verbose    # pretty output (sequential)
 ./tests/run-tests.sh --version
 ```
 
-## UAT Scenarios
+### 4.2 Make Targets
 
-batsman supports a separate **UAT (User Acceptance Testing)** layer alongside
-unit and integration tests. UAT scenarios test multi-step sysadmin workflows,
-output quality, and cross-view consistency — things that unit tests don't cover.
+| Target | Description |
+|--------|-------------|
+| `test` | Default OS, parallel (default goal) |
+| `test-serial` | Default OS, sequential (single container) |
+| `test-verbose` | Default OS, pretty formatter (sequential) |
+| `test-report` | Default OS, parallel, JUnit XML in `reports/` |
+| `test-<os>` | Specific OS, parallel |
+| `test-modern` | Modern tier, sequential across OS |
+| `test-legacy` | Legacy tier, sequential across OS |
+| `test-deep-legacy` | Deep legacy tier, sequential across OS |
+| `test-all` | All tiers, sequential across OS |
+| `test-modern-parallel` | Modern tier, parallel across OS |
+| `test-legacy-parallel` | Legacy tier, parallel across OS |
+| `test-deep-legacy-parallel` | Deep legacy tier, parallel across OS |
+| `test-all-parallel` | All tiers, parallel across OS |
+| `clean` | Remove all images for current project |
+| `clean-all` | Remove all batsman project images across all projects |
+| `clean-dangling` | Prune dangling images only (always safe) |
 
-### How It Works
+### 4.3 Exit Codes
 
-- UAT scenarios live in `tests/uat/` as standard BATS files
-- They are **invisible to `make test`** (the parallel runner uses `maxdepth 1`)
-- Run with `make uat` or `make uat-verbose`
-- Uses the same Docker images as unit tests — no separate build
-- Shared assertion helpers via `lib/uat-helpers.bash`
+| Code | Meaning |
+|------|---------|
+| 0 | All tests passed (or `--help`/`--version` displayed) |
+| 1 | Test failures, build errors, missing variables, or invalid arguments |
 
-### Directory Structure
+## 5. Docker Build
 
+batsman uses a two-phase Docker build to separate base OS infrastructure
+from project-specific dependencies.
+
+### 5.1 Build Phases
+
+- **Phase 1 (base image):** Built from batsman's `dockerfiles/Dockerfile.<os>`.
+  Installs system packages, common utilities, and BATS. Tagged as
+  `<project>-base-<os>` (e.g., `apf-base-debian12`).
+
+- **Phase 2 (project image):** Built from the project's own
+  `tests/Dockerfile.<os>`. Uses `ARG BASE_IMAGE` / `FROM ${BASE_IMAGE}` to
+  layer on project-specific packages, install the project, and copy test files.
+
+Base images are cached and shared across CI runs. Project images rebuild
+only when project code changes.
+
+### 5.2 Image Lifecycle
+
+Docker images accumulate across test runs. batsman provides opt-in cleanup:
+
+- **Auto-prune:** After every build, dangling images (orphaned by tag
+  replacement) are automatically pruned. This is silent and always safe.
+- **`--clean` flag:** Removes the base and test images for the target OS after
+  the test run completes. Test exit codes are preserved.
+- **`batsman_clean()`:** Public function with three modes: no args (current OS),
+  `--all` (all project images), `--dangling-only`.
+- **Makefile targets:** `clean` (current project), `clean-all` (all batsman
+  projects), `clean-dangling` (dangling only).
+
+### 5.3 Package Managers
+
+| OS Family | Manager | Install Command | Notes |
+|-----------|---------|----------------|-------|
+| Debian/Ubuntu | apt-get | `apt-get install -y --no-install-recommends` | |
+| CentOS 6/7 | yum | `yum install -y` | |
+| Rocky 8/9 (minimal) | microdnf | `microdnf install -y` | No `--allowerasing` |
+| Rocky 10 | dnf | `dnf install -y --allowerasing` | Full dnf |
+
+Rocky 8/9 minimal images ship `coreutils-single` which conflicts with
+`coreutils` via `microdnf`. Omit `coreutils` from package lists on these
+targets.
+
+## 6. Test Orchestration
+
+The orchestration engine distributes test files across parallel Docker
+containers and aggregates the results.
+
+### 6.1 Parallel Execution
+
+- `.bats` files are distributed round-robin across N Docker containers
+  (default: `nproc`).
+- Each container runs a subset of tests independently.
+- TAP output from all containers is collected and merged into a single stream.
+- Each container gets a deterministic name (`<project>-<os>-<pid>-g<N>`)
+  for debugging. Containers are cleaned up on exit, including on
+  `SIGINT`/`SIGTERM`.
+
+### 6.2 Formatter Restriction
+
+Parallel mode forces `tap` formatter for TAP stream aggregation. The
+`--formatter` option applies only to sequential and direct modes. Use
+`make test-verbose` (sequential) for pretty-formatted output.
+
+### 6.3 OS Tier Architecture
+
+**Modern** -- Current production targets. Full TLS support, modern package
+managers, Bash 5.x. Run in CI by default.
+
+**Legacy** -- Older but still commonly deployed. EOL repositories may be
+needed (CentOS 7 uses `vault.centos.org`). Bash 4.2+.
+
+**Deep Legacy** -- CentOS 6 (Bash 4.1, kernel 2.6.32) and Ubuntu 12.04
+(Bash 4.2). These define the portability floor. `install-bats.sh` provides
+TLS fallback modes for systems where `wget` cannot connect to GitHub over
+TLS 1.2+. SHA256 checksums verify download integrity regardless of TLS mode.
+
+**Extra** -- Targets not included in CI by default. Available for manual
+testing via `make -C tests test-<os>`. Projects may also use Extra for
+non-OS variants (e.g., LMD's `yara-x` target).
+
+## 7. Integration Guide
+
+Consumer projects need three files to integrate with batsman: a Dockerfile,
+a `run-tests.sh` wrapper, and a Makefile.
+
+### 7.1 Project Dockerfile
+
+Each OS needs a project Dockerfile. The default target (debian12) uses
+`tests/Dockerfile`; others use `tests/Dockerfile.<os>`.
+
+```dockerfile
+ARG BASE_IMAGE=myproject-base-debian12
+FROM ${BASE_IMAGE}
+
+# Project-specific packages only -- base utilities are in the base image
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    iptables iproute2
+
+# Install project
+COPY . /opt/project-src/
+RUN cd /opt/project-src && sh install.sh
+
+# Copy tests
+COPY tests/ /opt/tests/
+WORKDIR /opt/tests
+CMD ["bats", "--formatter", "tap", "/opt/tests/"]
 ```
-tests/
-├── infra/                    # batsman submodule
-├── helpers/
-│   └── uat-myproject.bash    # Project-specific UAT helpers
-├── uat/                      # UAT scenario files
-│   ├── 01-workflow-a.bats
-│   ├── 02-workflow-b.bats
-│   └── ...
-├── 01-unit-tests.bats        # Unit tests (run by make test)
-└── Makefile
+
+For RHEL-family targets, use the appropriate package manager:
+
+```dockerfile
+# Rocky 8/9 (microdnf)
+RUN microdnf install -y iproute && microdnf clean all
+
+# Rocky 10 (dnf)
+RUN dnf install -y --allowerasing iproute && dnf clean all
+
+# CentOS 6/7 (yum)
+RUN yum install -y iproute && yum clean all
 ```
 
-### Writing UAT Scenarios
+### 7.2 run-tests.sh Wrapper
+
+The wrapper sets project-specific variables and sources the orchestration
+engine.
 
 ```bash
-#!/usr/bin/env bats
-load '/usr/local/lib/bats/bats-support/load'
-load '/usr/local/lib/bats/bats-assert/load'
-load '../helpers/uat-myproject'
-load '../infra/lib/uat-helpers'
+#!/bin/bash
+set -e
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-setup_file() {
-    uat_setup              # Initialize output capture
-    my_project_install     # Project-specific install
-}
+# Required variables
+BATSMAN_PROJECT="myproject"
+BATSMAN_PROJECT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
+BATSMAN_TESTS_DIR="$SCRIPT_DIR"
+BATSMAN_INFRA_DIR="$SCRIPT_DIR/infra"
+BATSMAN_CONTAINER_TEST_PATH="/opt/tests"
+BATSMAN_SUPPORTED_OS="debian12 centos6 centos7 rocky8 rocky9 rocky10 ubuntu1204 ubuntu2004 ubuntu2404"
 
-teardown_file() {
-    my_project_reset       # Clean state
-}
+# Optional variables
+BATSMAN_DOCKER_FLAGS="--privileged"     # Only if needed (e.g., iptables tests)
+BATSMAN_DEFAULT_OS="debian12"
+BATSMAN_BASE_OS_MAP=""                  # e.g., "yara-x=debian12" for variants
 
-# bats test_tags=uat,uat:my-workflow
-@test "UAT: operation produces expected state" {
-    uat_capture "my-workflow" mycommand --flag arg
-    assert_success
-    assert_output --partial "expected text"
-}
-
-# bats test_tags=uat,uat:my-workflow
-@test "UAT: JSON output is valid" {
-    uat_capture "my-workflow" mycommand --json
-    assert_success
-    assert_valid_json
-    assert_no_banner_corruption json
-}
+source "$BATSMAN_INFRA_DIR/lib/run-tests-core.sh"
+batsman_run "$@"
 ```
 
-### Available Helpers (`lib/uat-helpers.bash`)
+### 7.3 Makefile Include
 
-**Dependency:** JSON assertion helpers (`assert_valid_json`, `assert_json_field`,
-`assert_json_array_length`) require `python3` in the container. batsman base
-images do not install python3 — add it to your project Dockerfile if using
-these helpers.
+The project Makefile defines tier groupings and includes `Makefile.tests`.
 
-| Function | Purpose |
-|----------|---------|
-| `uat_setup` | Create output capture directory and session log |
-| `uat_capture SCENARIO CMD...` | Run command, capture output to named log, set `$output`/`$status` |
-| `uat_log MSG` | Append timestamped message to session log |
-| `assert_valid_json` | Validate `$output` is parseable JSON |
-| `assert_valid_csv [COLS]` | Validate CSV structure and column consistency |
-| `assert_empty_state_message` | Verify non-blank "no data" message |
-| `assert_no_banner_corruption FMT` | Verify structured output has no version banner |
-| `assert_json_field KEY EXPECTED` | Assert JSON field value with dot-notation for nested fields |
-| `assert_json_array_length KEY COUNT` | Assert JSON array length at a given key path |
-| `assert_csv_row_count COUNT` | Assert CSV data row count (excluding header) |
-| `assert_csv_header COLS...` | Assert CSV header contains expected column names |
-| `assert_output_line_count MIN [MAX]` | Assert output line count (exact or range) |
-| `assert_file_perms FILE OCTAL` | Assert file permission matches expected octal |
-| `assert_process_running PATTERN` | Assert process matching pattern exists |
-| `assert_process_not_running PATTERN` | Assert no process matching pattern exists |
-| `uat_wait_for_condition CMD TIMEOUT` | Poll command until success or timeout |
-| `uat_wait_for_file FILE TIMEOUT` | Wait for file to exist and be non-empty |
-| `uat_wait_for_log FILE PATTERN TIMEOUT` | Wait for pattern to appear in log file |
-| `uat_cleanup_processes PATTERN` | Kill matching processes with graceful SIGKILL fallback |
+```makefile
+BATSMAN_OS_MODERN := debian12 rocky9 ubuntu2404
+BATSMAN_OS_LEGACY := centos7 rocky8 ubuntu2004
+BATSMAN_OS_DEEP   := centos6 ubuntu1204
+BATSMAN_OS_EXTRA  := rocky10
+BATSMAN_OS_ALL    := $(BATSMAN_OS_MODERN) $(BATSMAN_OS_LEGACY) $(BATSMAN_OS_DEEP) $(BATSMAN_OS_EXTRA)
+BATSMAN_RUN_TESTS := ./run-tests.sh
+BATSMAN_PROJECT   := myproject
 
-### Running UAT
-
-```bash
-# All UAT scenarios (default OS)
-make -C tests uat
-
-# Verbose output
-make -C tests uat-verbose
-
-# Specific category via BATS tags
-./tests/run-tests.sh --filter-tags "uat:ban-lifecycle" -- /opt/tests/uat/
-
-# Specific file
-./tests/run-tests.sh -- /opt/tests/uat/01-workflow-a.bats
+include infra/include/Makefile.tests
 ```
 
-### Tag Convention
+### 7.4 CI Workflow Caller
 
-- Tag all UAT tests with `uat` for universal filtering
-- Add category sub-tags: `uat:ban-lifecycle`, `uat:output-quality`, etc.
-- Syntax: `# bats test_tags=uat,uat:category-name`
+Projects call the reusable workflow from their own CI configuration.
 
-## Using batsman in Your Own Project
+```yaml
+name: Tests
+on:
+  push:
+    branches: [master, '2.*']
+  pull_request:
+    branches: [master]
+jobs:
+  test:
+    uses: rfxn/batsman/.github/workflows/test.yml@v1.2.2
+    with:
+      project-name: myproject
+      os-matrix: '["debian12","centos7","rocky8","rocky9","ubuntu2004","ubuntu2404"]'
+      docker-run-flags: '--privileged'    # omit if not needed
+```
 
-batsman can be used by any Bash project that needs cross-OS BATS testing.
-
-### Requirements
-
-- Docker (with BuildKit support)
-- GNU Make
-- Bash 4.1+
-- Git (for submodule)
-
-### Minimal Standalone Example
+### 7.5 Minimal Example
 
 For a project with a single OS target and no special requirements:
 
@@ -601,20 +497,7 @@ include infra/include/Makefile.tests
 Then `make -C tests test` builds the base image, builds the project image,
 and runs your BATS tests.
 
-### Customization
-
-- **`BATSMAN_DOCKER_FLAGS`** — Set to `--privileged` if your tests need
-  iptables, kernel modules, or network namespaces. Leave empty otherwise.
-- **`BATSMAN_BASE_OS_MAP`** — Map variant names to base OS images. For example,
-  `"yara-x=debian12"` means the `yara-x` variant reuses the `debian12` base
-  image but has its own project Dockerfile (`tests/Dockerfile.yara-x`).
-- **Tier groupings** — Adjust `BATSMAN_OS_MODERN`, `BATSMAN_OS_LEGACY`, etc.
-  to match your project's support matrix.
-- **TLS fallback** — Deep legacy Dockerfiles set `TLS_FALLBACK=2` in the
-  `install-bats.sh` invocation to handle systems where `wget` cannot connect
-  to GitHub over TLS 1.2+.
-
-### Pinning to a Release Tag
+### 7.6 Pinning to a Release
 
 Pin the submodule to a specific tag for reproducibility:
 
@@ -632,30 +515,25 @@ In CI workflow callers, reference the same tag:
 uses: rfxn/batsman/.github/workflows/test.yml@v1.2.2
 ```
 
-## Migration Guide
+## 8. Migration Guide
 
 Upgrade notes for consumer projects. Newest version first.
 
-### Upgrading to v1.0.3
+### 8.1 Upgrading to v1.0.3
 
 **SHA256 checksum verification (transparent)**
 
 `install-bats.sh` now verifies SHA256 checksums for all three downloaded
 tarballs (bats-core, bats-support, bats-assert) after download and before
-extraction. This is transparent for standard usage — the checksums match the
-pinned versions shipped with batsman. If you override `BATS_VERSION`,
-`BATS_SUPPORT_VERSION`, or `BATS_ASSERT_VERSION` via environment variables,
-you must also set the corresponding `BATS_CORE_SHA256`, `BATS_SUPPORT_SHA256`,
-or `BATS_ASSERT_SHA256` to match your custom tarballs. A mismatch aborts the
-build with expected vs actual hash output.
+extraction. This is transparent for standard usage. If you override
+`BATS_VERSION`, `BATS_SUPPORT_VERSION`, or `BATS_ASSERT_VERSION`, you
+must also set the corresponding SHA256 variables.
 
 **Default parallelism reduced**
 
-Default parallel container count changed from `nproc*2` to `nproc` — both for
-intra-OS containers (`run-tests-core.sh`) and cross-OS parallel jobs
-(`Makefile.tests PARALLEL_JOBS`). This prevents compounding container storms
-on `test-all-parallel` targets. To restore the previous behavior, pass an
-explicit count:
+Default parallel container count changed from `nproc*2` to `nproc` for
+both intra-OS containers and cross-OS parallel jobs. To restore the
+previous behavior:
 
 ```bash
 # Intra-OS: override via CLI
@@ -667,20 +545,19 @@ make -C tests test-all-parallel PARALLEL_JOBS=$(($(nproc) * 2))
 
 **CLI argument parsing stricter**
 
-Flags that require a value (`--os`, `--filter`, `--filter-tags`, `--formatter`,
-`--timeout`, `--report-dir`) now error when the trailing argument is missing.
-`--timeout` rejects non-numeric values. Unknown `--flags` emit a warning
-instead of silently routing to direct mode. These changes only affect incorrect
-invocations — correct usage is unaffected.
+Flags that require a value (`--os`, `--filter`, `--filter-tags`,
+`--formatter`, `--timeout`, `--report-dir`) now error when the trailing
+argument is missing. `--timeout` rejects non-numeric values. Unknown
+`--flags` emit a warning instead of silently routing to direct mode.
 
-### Upgrading to v1.0.2
+### 8.2 Upgrading to v1.0.2
 
-**BATS 1.13.0 run-variable unset — BREAKING CHANGE**
+**BATS 1.13.0 run-variable unset -- BREAKING CHANGE**
 
-BATS was upgraded from 1.11.0 to 1.13.0. Starting with BATS 1.12.0, the `run`
-command unsets `$output`, `$lines`, `$stderr`, and `$stderr_lines` at the start
-of each invocation. Tests that rely on stale values from a previous `run` call
-will silently produce incorrect results.
+BATS was upgraded from 1.11.0 to 1.13.0. Starting with BATS 1.12.0, the
+`run` command unsets `$output`, `$lines`, `$stderr`, and `$stderr_lines`
+at the start of each invocation. Tests that rely on stale values from a
+previous `run` call will silently produce incorrect results.
 
 **Broken pattern:**
 ```bash
@@ -688,8 +565,6 @@ will silently produce incorrect results.
     run some_command
     run another_command
     # BUG: $output now contains only another_command's output
-    # In BATS < 1.12.0, if another_command produced no output,
-    # $output would still hold some_command's output (crosstalk)
     assert_output --partial "from some_command"  # FAILS
 }
 ```
@@ -705,64 +580,116 @@ will silently produce incorrect results.
 }
 ```
 
-Audit your existing test suites for this pattern:
-```bash
-grep -n 'run ' tests/*.bats | grep -B1 'assert_output\|assert_line\|\$output\|\$lines'
-```
-
 **New CLI options available**
 
-v1.0.2 added `--timeout`, `--abort`, `--filter-tags`, `--report-dir`, `--clean`,
-and `--version`. See the [Script CLI](#script-cli) section for usage.
+v1.0.2 added `--timeout`, `--abort`, `--filter-tags`, `--report-dir`,
+`--clean`, and `--version`.
 
 **CI workflow changes**
 
-The reusable workflow gained `test-path` (default `/opt/tests`), `reports`
-(default `true`), and `concurrency-group` inputs. JUnit XML reports are uploaded
-as artifacts with 14-day retention and written to the job summary.
+The reusable workflow gained `test-path`, `reports`, and
+`concurrency-group` inputs. JUnit XML reports are uploaded as artifacts
+with 14-day retention.
 
-Update your CI caller reference:
-```yaml
-# Before
-uses: rfxn/batsman/.github/workflows/test.yml@v1.0.1
-
-# After
-uses: rfxn/batsman/.github/workflows/test.yml@v1.0.2
-```
-
-Update your submodule pin:
-```bash
-cd tests/infra
-git fetch origin --tags --force
-git checkout v1.0.2
-cd ../..
-git add tests/infra
-git commit -m "Pin batsman submodule to v1.0.2"
-```
-
-### Upgrading to v1.0.1
+### 8.3 Upgrading to v1.0.1
 
 **Variant mapping (new capability)**
 
-v1.0.1 introduced `BATSMAN_BASE_OS_MAP` for mapping non-OS variant names to
-base OS images (e.g., `"yara-x=debian12"`). No action required unless you want
-to use this feature.
+v1.0.1 introduced `BATSMAN_BASE_OS_MAP` for mapping non-OS variant names
+to base OS images (e.g., `"yara-x=debian12"`). No action required unless
+you want to use this feature.
 
 **Makefile include and CI workflow introduced**
 
-v1.0.1 added `include/Makefile.tests` and `.github/workflows/test.yml`. Projects
-upgrading from v1.0.0 need to create a `tests/Makefile` and CI workflow caller.
-See the [Integration Guide](#integration-guide) section for templates.
+v1.0.1 added `include/Makefile.tests` and `.github/workflows/test.yml`.
+Projects upgrading from v1.0.0 need to create a `tests/Makefile` and CI
+workflow caller.
 
-**Rocky 10 image name fix (transparent)**
+## 9. UAT Framework
 
-The Rocky 10 base image was corrected from `rockylinux:10` to
-`rockylinux/rockylinux:10`. No action required.
+batsman supports a separate UAT (User Acceptance Testing) layer alongside
+unit and integration tests. UAT scenarios test multi-step workflows,
+output quality, and cross-view consistency.
 
-## Consumer Projects
+### 9.1 How It Works
 
-| Project | Docker Flags | Container Test Path | OS Targets | Notable | Repository |
-|---------|-------------|--------------------|-----------:|---------|------------|
+- UAT scenarios live in `tests/uat/` as standard BATS files.
+- They are invisible to `make test` (the parallel runner uses `maxdepth 1`).
+- Run with `make uat` or `make uat-verbose`.
+- Uses the same Docker images as unit tests -- no separate build.
+- Shared assertion helpers via `lib/uat-helpers.bash`.
+
+### 9.2 Directory Structure
+
+```
+tests/
+├── infra/                    # batsman submodule
+├── helpers/
+│   └── uat-myproject.bash    # Project-specific UAT helpers
+├── uat/                      # UAT scenario files
+│   ├── 01-workflow-a.bats
+│   └── 02-workflow-b.bats
+├── 01-unit-tests.bats        # Unit tests (run by make test)
+└── Makefile
+```
+
+### 9.3 Available Helpers
+
+JSON assertion helpers (`assert_valid_json`, `assert_json_field`,
+`assert_json_array_length`) require `python3` in the container. batsman
+base images do not install python3 -- add it to your project Dockerfile
+if using these helpers.
+
+| Function | Purpose |
+|----------|---------|
+| `uat_setup` | Create output capture directory and session log |
+| `uat_capture SCENARIO CMD...` | Run command, capture output to named log |
+| `uat_log MSG` | Append timestamped message to session log |
+| `assert_valid_json` | Validate `$output` is parseable JSON |
+| `assert_valid_csv [COLS]` | Validate CSV structure and column consistency |
+| `assert_empty_state_message` | Verify non-blank "no data" message |
+| `assert_no_banner_corruption FMT` | Verify structured output has no version banner |
+| `assert_json_field KEY EXPECTED` | Assert JSON field value with dot-notation |
+| `assert_json_array_length KEY COUNT` | Assert JSON array length at a given key path |
+| `assert_csv_row_count COUNT` | Assert CSV data row count (excluding header) |
+| `assert_csv_header COLS...` | Assert CSV header contains expected column names |
+| `assert_output_line_count MIN [MAX]` | Assert output line count (exact or range) |
+| `assert_file_perms FILE OCTAL` | Assert file permission matches expected octal |
+| `assert_process_running PATTERN` | Assert process matching pattern exists |
+| `assert_process_not_running PATTERN` | Assert no process matching pattern exists |
+| `uat_wait_for_condition CMD TIMEOUT` | Poll command until success or timeout |
+| `uat_wait_for_file FILE TIMEOUT` | Wait for file to exist and be non-empty |
+| `uat_wait_for_log FILE PATTERN TIMEOUT` | Wait for pattern to appear in log file |
+| `uat_cleanup_processes PATTERN` | Kill matching processes with SIGKILL fallback |
+
+### 9.4 Running UAT
+
+```bash
+# All UAT scenarios (default OS)
+make -C tests uat
+
+# Verbose output
+make -C tests uat-verbose
+
+# Specific category via BATS tags
+./tests/run-tests.sh --filter-tags "uat:ban-lifecycle" -- /opt/tests/uat/
+
+# Specific file
+./tests/run-tests.sh -- /opt/tests/uat/01-workflow-a.bats
+```
+
+### 9.5 Tag Convention
+
+- Tag all UAT tests with `uat` for universal filtering.
+- Add category sub-tags: `uat:ban-lifecycle`, `uat:output-quality`, etc.
+- Syntax: `# bats test_tags=uat,uat:category-name`
+
+## 10. Consumer Projects
+
+Projects currently using batsman as their test infrastructure.
+
+| Project | Docker Flags | Test Path | OS Targets | Notable | Repository |
+|---------|-------------|-----------|-----------|---------|------------|
 | APF | `--privileged` | `/opt/tests` | 9 | iptables/netfilter tests | [rfxn/apf](https://github.com/rfxn/apf) |
 | BFD | (none) | `/opt/tests` | 9 | | [rfxn/bfd](https://github.com/rfxn/bfd) |
 | LMD | (none) | `/opt/tests` | 9 + yara-x | BATSMAN_BASE_OS_MAP for yara-x variant | [rfxn/lmd](https://github.com/rfxn/lmd) |
@@ -770,4 +697,10 @@ The Rocky 10 base image was corrected from `rockylinux:10` to
 
 ## License
 
-GNU General Public License v2 — see LICENSE.
+GNU General Public License v2 -- see [LICENSE](LICENSE).
+
+## Support
+
+- **Issues:** [github.com/rfxn/batsman/issues](https://github.com/rfxn/batsman/issues)
+- **Email:** proj@rfxn.com
+- **Web:** [rfxn.com](https://www.rfxn.com)
