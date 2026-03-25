@@ -10,7 +10,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     bash coreutils findutils diffutils procps \
     gawk sed grep gzip tar \
     wget curl ca-certificates \
-    util-linux hostname \
+    util-linux hostname parallel \
     && rm -rf /var/lib/apt/lists/*
 
 COPY scripts/install-bats.sh /tmp/install-bats.sh

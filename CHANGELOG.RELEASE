@@ -4,3 +4,7 @@
 [New] Reusable CI workflow: parallel-jobs input for BATS --jobs N parallel file execution
       (default 0 = serial, backward compatible — consumers opt in with parallel-jobs: N)
 [New] Self-test workflow uses --jobs 2 for parallel test execution
+[New] GNU parallel installed in 7 of 9 base Docker images — debian12, ubuntu2004/2404,
+      centos7, rocky8/9/10 (via EPEL for RHEL family)
+[New] Graceful fallback: deep legacy images (centos6, ubuntu1204) without parallel
+      run tests serially with CI warning when parallel-jobs is requested

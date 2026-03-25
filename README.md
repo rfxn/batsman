@@ -452,7 +452,7 @@ jobs:
       project-name: myproject
       os-matrix: '["debian12","centos7","rocky8","rocky9","ubuntu2004","ubuntu2404"]'
       docker-run-flags: '--privileged'    # omit if not needed
-      parallel-jobs: 4                    # BATS --jobs N (omit for serial)
+      parallel-jobs: 4                    # BATS --jobs 4 (omit for serial)
 ```
 
 ### 7.5 Minimal Example
@@ -534,12 +534,14 @@ To enable, add `parallel-jobs` to your workflow caller:
 ```yaml
 uses: rfxn/batsman/.github/workflows/test.yml@v1.3.0
 with:
-  parallel-jobs: 4    # match GHA runner vCPU count
+  parallel-jobs: 4    # recommended for GHA standard runners
 ```
 
-BATS `--jobs` requires test files to be independent (no cross-file
-state sharing). Tests within each file still run sequentially.
-`setup_file`/`teardown_file` scoping is preserved.
+BATS `--jobs` requires GNU `parallel` inside the container and test
+files that are independent (no cross-file state sharing). Tests within
+each file still run sequentially. `setup_file`/`teardown_file` scoping
+is preserved. Deep legacy images (centos6, ubuntu1204) lack `parallel`
+and fall back to serial execution automatically with a CI warning.
 
 ### 8.2 Upgrading to v1.0.3
 
@@ -572,7 +574,7 @@ Flags that require a value (`--os`, `--filter`, `--filter-tags`,
 argument is missing. `--timeout` rejects non-numeric values. Unknown
 `--flags` emit a warning instead of silently routing to direct mode.
 
-### 8.2 Upgrading to v1.0.2
+### 8.3 Upgrading to v1.0.2
 
 **BATS 1.13.0 run-variable unset -- BREAKING CHANGE**
 
@@ -613,7 +615,7 @@ The reusable workflow gained `test-path`, `reports`, and
 `concurrency-group` inputs. JUnit XML reports are uploaded as artifacts
 with 14-day retention.
 
-### 8.3 Upgrading to v1.0.1
+### 8.4 Upgrading to v1.0.1
 
 **Variant mapping (new capability)**
 

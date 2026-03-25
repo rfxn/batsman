@@ -114,7 +114,12 @@ jobs:
             REPORT_MOUNT="-v ${{ runner.temp }}/reports:/reports"
           fi
           if [ "${{ inputs.parallel-jobs }}" -gt 0 ]; then
-            JOBS_FLAG="--jobs ${{ inputs.parallel-jobs }}"
+            if docker run --rm ${{ inputs.project-name }}-test-${{ matrix.os }} \
+                 sh -c 'command -v parallel >/dev/null 2>&1'; then
+              JOBS_FLAG="--jobs ${{ inputs.parallel-jobs }}"
+            else
+              echo "::warning::GNU parallel not found in ${{ matrix.os }} image — running tests serially"
+            fi
           fi
           docker run --rm \
             ${{ inputs.docker-run-flags }} \

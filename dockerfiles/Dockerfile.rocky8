@@ -6,11 +6,12 @@ FROM rockylinux:8-minimal
 
 # coreutils-single already present in minimal image; installing coreutils
 # would conflict, so omit it (coreutils-single provides equivalent commands)
-RUN microdnf install -y \
+RUN microdnf install -y epel-release && \
+    microdnf install -y \
     bash findutils diffutils procps-ng \
     gawk sed grep gzip tar \
     wget curl ca-certificates \
-    util-linux hostname \
+    util-linux hostname parallel \
     && microdnf clean all
 
 COPY scripts/install-bats.sh /tmp/install-bats.sh

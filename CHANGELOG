@@ -5,6 +5,8 @@ https://github.com/rfxn/batsman
 - 1.3.0 | Mar 25 2026:
 [New] Reusable CI workflow: parallel-jobs input for BATS --jobs N parallel file execution
 [New] Self-test workflow uses --jobs 2 for parallel test execution
+[New] GNU parallel installed in 7 of 9 base Docker images (EPEL for RHEL family)
+[New] Graceful fallback: deep legacy images without parallel run tests serially with CI warning
 
 - 1.2.2 | Mar 23 2026:
 [Change] README: floor-level documentation convention compliance — numbered sections,
