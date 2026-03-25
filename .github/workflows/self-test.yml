@@ -73,6 +73,7 @@ jobs:
             -v "${{ runner.temp }}/reports:/reports" \
             batsman-test-debian12 \
             bats --formatter tap \
+            --jobs 2 \
             --report-formatter junit --output /reports \
             /opt/tests/
 

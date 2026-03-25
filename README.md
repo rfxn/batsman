@@ -2,7 +2,7 @@
 
 <p align="center">
   <a href="https://github.com/rfxn/batsman/actions/workflows/self-test.yml"><img src="https://github.com/rfxn/batsman/actions/workflows/self-test.yml/badge.svg?style=flat-square" alt="CI"></a>
-  <a href="CHANGELOG"><img src="https://img.shields.io/badge/version-1.2.2-blue.svg?style=flat-square" alt="Version"></a>
+  <a href="CHANGELOG"><img src="https://img.shields.io/badge/version-1.3.0-blue.svg?style=flat-square" alt="Version"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-GPL_v2-green.svg?style=flat-square" alt="License"></a>
   <a href="https://www.gnu.org/software/bash/"><img src="https://img.shields.io/badge/shell-bash-4EAA25.svg?style=flat-square" alt="Shell"></a>
   <a href="https://github.com/bats-core/bats-core"><img src="https://img.shields.io/badge/bats--core-1.13.0-orange.svg?style=flat-square" alt="BATS"></a>
@@ -86,10 +86,10 @@ cd your-project
 git submodule add https://github.com/rfxn/batsman.git tests/infra
 cd tests/infra
 git fetch --tags
-git checkout v1.2.2
+git checkout v1.3.0
 cd ../..
 git add tests/infra
-git commit -m "Pin batsman submodule to v1.2.2"
+git commit -m "Pin batsman submodule to v1.3.0"
 ```
 
 ### 2.1 Upgrading
@@ -99,16 +99,16 @@ Update the submodule to a new tag and update CI workflow references.
 ```bash
 cd tests/infra
 git fetch origin --tags --force
-git checkout v1.2.2
+git checkout v1.3.0
 cd ../..
 git add tests/infra
-git commit -m "Pin batsman submodule to v1.2.2"
+git commit -m "Pin batsman submodule to v1.3.0"
 ```
 
 In CI workflow callers, update the tag reference:
 
 ```yaml
-uses: rfxn/batsman/.github/workflows/test.yml@v1.2.2
+uses: rfxn/batsman/.github/workflows/test.yml@v1.3.0
 ```
 
 See the [Migration Guide](#8-migration-guide) for version-specific
@@ -191,6 +191,7 @@ Inputs for the reusable workflow (`.github/workflows/test.yml`).
 | `dockerfile-dir` | no | `tests` | Directory containing project Dockerfiles |
 | `concurrency-group` | no | `""` | Concurrency group prefix |
 | `test-path` | no | `/opt/tests` | Test directory path inside container |
+| `parallel-jobs` | no | `0` | BATS parallel jobs via `--jobs N` (0 = serial) |
 | `reports` | no | `true` | Generate JUnit XML reports and upload as artifacts |
 
 ## 4. Usage
@@ -446,11 +447,12 @@ on:
     branches: [master]
 jobs:
   test:
-    uses: rfxn/batsman/.github/workflows/test.yml@v1.2.2
+    uses: rfxn/batsman/.github/workflows/test.yml@v1.3.0
     with:
       project-name: myproject
       os-matrix: '["debian12","centos7","rocky8","rocky9","ubuntu2004","ubuntu2404"]'
       docker-run-flags: '--privileged'    # omit if not needed
+      parallel-jobs: 4                    # BATS --jobs N (omit for serial)
 ```
 
 ### 7.5 Minimal Example
@@ -504,22 +506,42 @@ Pin the submodule to a specific tag for reproducibility:
 ```bash
 cd tests/infra
 git fetch --tags
-git checkout v1.2.2
+git checkout v1.3.0
 cd ../..
 git add tests/infra
-git commit -m "Pin batsman submodule to v1.2.2"
+git commit -m "Pin batsman submodule to v1.3.0"
 ```
 
 In CI workflow callers, reference the same tag:
 ```yaml
-uses: rfxn/batsman/.github/workflows/test.yml@v1.2.2
+uses: rfxn/batsman/.github/workflows/test.yml@v1.3.0
 ```
 
 ## 8. Migration Guide
 
 Upgrade notes for consumer projects. Newest version first.
 
-### 8.1 Upgrading to v1.0.3
+### 8.1 Upgrading to v1.3.0
+
+**CI parallel test execution (opt-in)**
+
+The reusable workflow now accepts a `parallel-jobs` input that passes
+`--jobs N` to BATS, running test files in parallel within each matrix
+job. Default is `0` (serial) — no behavior change unless you opt in.
+
+To enable, add `parallel-jobs` to your workflow caller:
+
+```yaml
+uses: rfxn/batsman/.github/workflows/test.yml@v1.3.0
+with:
+  parallel-jobs: 4    # match GHA runner vCPU count
+```
+
+BATS `--jobs` requires test files to be independent (no cross-file
+state sharing). Tests within each file still run sequentially.
+`setup_file`/`teardown_file` scoping is preserved.
+
+### 8.2 Upgrading to v1.0.3
 
 **SHA256 checksum verification (transparent)**
 

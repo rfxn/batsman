@@ -46,6 +46,11 @@ on:
         required: false
         default: '/opt/tests'
         description: 'Test directory path inside container'
+      parallel-jobs:
+        type: number
+        required: false
+        default: 0
+        description: 'BATS parallel jobs via --jobs N (0 = serial, >0 = parallel file execution)'
       reports:
         type: boolean
         required: false
@@ -102,16 +107,21 @@ jobs:
         run: |
           REPORT_FLAGS=""
           REPORT_MOUNT=""
+          JOBS_FLAG=""
           if [ "${{ inputs.reports }}" = "true" ]; then
             mkdir -p "${{ runner.temp }}/reports"
             REPORT_FLAGS="--report-formatter junit --output /reports"
             REPORT_MOUNT="-v ${{ runner.temp }}/reports:/reports"
+          fi
+          if [ "${{ inputs.parallel-jobs }}" -gt 0 ]; then
+            JOBS_FLAG="--jobs ${{ inputs.parallel-jobs }}"
           fi
           docker run --rm \
             ${{ inputs.docker-run-flags }} \
             $REPORT_MOUNT \
             ${{ inputs.project-name }}-test-${{ matrix.os }} \
             bats --formatter tap \
+            $JOBS_FLAG \
             $REPORT_FLAGS \
             ${{ inputs.test-path }}
 
