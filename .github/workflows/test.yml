@@ -56,19 +56,49 @@ on:
         required: false
         default: true
         description: 'Generate JUnit XML reports and upload as artifacts'
+      file-groups:
+        type: number
+        required: false
+        default: 1
+        description: 'Split test files into N groups, each running in a separate matrix job (default 1 = all files in one job)'
 
 jobs:
+  setup:
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.matrix.outputs.result }}
+    steps:
+      - name: Checkout (file-group discovery)
+        if: inputs.file-groups > 1
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Generate test matrix
+        id: matrix
+        run: |
+          if [ "${{ inputs.file-groups }}" -le 1 ]; then
+            echo "result={\"os\":${{ inputs.os-matrix }}}" >> "$GITHUB_OUTPUT"
+          else
+            RESULT=$(bash "${{ inputs.dockerfile-dir }}/infra/scripts/file-groups.sh" \
+              "${{ inputs.dockerfile-dir }}" \
+              "${{ inputs.file-groups }}" \
+              "${{ inputs.test-path }}" \
+              '${{ inputs.os-matrix }}')
+            echo "result=${RESULT}" >> "$GITHUB_OUTPUT"
+          fi
+
   test:
+    needs: setup
     runs-on: ubuntu-latest
     timeout-minutes: ${{ inputs.timeout }}
 
     concurrency:
-      group: ${{ inputs.concurrency-group != '' && format('{0}-{1}', inputs.concurrency-group, matrix.os) || format('{0}-{1}-{2}', inputs.project-name, github.ref, matrix.os) }}
+      group: ${{ inputs.concurrency-group != '' && format('{0}-{1}{2}', inputs.concurrency-group, matrix.os, matrix.group && format('-g{0}', matrix.group) || '') || format('{0}-{1}-{2}{3}', inputs.project-name, github.ref, matrix.os, matrix.group && format('-g{0}', matrix.group) || '') }}
       cancel-in-progress: true
 
     strategy:
-      matrix:
-        os: ${{ fromJSON(inputs.os-matrix) }}
+      matrix: ${{ fromJSON(needs.setup.outputs.matrix) }}
       fail-fast: false
 
     steps:
@@ -103,7 +133,7 @@ jobs:
             -t "${{ inputs.project-name }}-test-${{ matrix.os }}" \
             .
 
-      - name: Run tests (${{ matrix.os }})
+      - name: Run tests (${{ matrix.os }}${{ matrix.group && format(' g{0}', matrix.group) || '' }})
         run: |
           REPORT_FLAGS=""
           REPORT_MOUNT=""
@@ -121,6 +151,7 @@ jobs:
               echo "::warning::GNU parallel not found in ${{ matrix.os }} image — running tests serially"
             fi
           fi
+          TEST_TARGET="${{ matrix.files || inputs.test-path }}"
           docker run --rm \
             ${{ inputs.docker-run-flags }} \
             $REPORT_MOUNT \
@@ -128,13 +159,13 @@ jobs:
             bats --formatter tap \
             $JOBS_FLAG \
             $REPORT_FLAGS \
-            ${{ inputs.test-path }}
+            $TEST_TARGET
 
       - name: Upload test reports
         if: inputs.reports && always()
         uses: actions/upload-artifact@v4
         with:
-          name: test-reports-${{ inputs.project-name }}-${{ matrix.os }}
+          name: test-reports-${{ inputs.project-name }}-${{ matrix.os }}${{ matrix.group && format('-g{0}', matrix.group) || '' }}
           path: ${{ runner.temp }}/reports/
           retention-days: 14
           if-no-files-found: ignore
@@ -152,7 +183,8 @@ jobs:
           errors=$(grep -o 'errors="[0-9]*"' "$REPORT_FILE" | head -1 | grep -o '[0-9]*' || echo "0")
           skipped=$(grep -o 'skipped="[0-9]*"' "$REPORT_FILE" | head -1 | grep -o '[0-9]*' || echo "0")
           time=$(grep -o 'time="[0-9.]*"' "$REPORT_FILE" | head -1 | grep -o '[0-9.]*' || echo "?")
-          echo "## Test Results: ${{ matrix.os }}" >> "$GITHUB_STEP_SUMMARY"
+          GROUP_LABEL="${{ matrix.group && format(' (group {0})', matrix.group) || '' }}"
+          echo "## Test Results: ${{ matrix.os }}${GROUP_LABEL}" >> "$GITHUB_STEP_SUMMARY"
           echo "" >> "$GITHUB_STEP_SUMMARY"
           echo "| Metric | Count |" >> "$GITHUB_STEP_SUMMARY"
           echo "|--------|-------|" >> "$GITHUB_STEP_SUMMARY"

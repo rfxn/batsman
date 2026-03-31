@@ -1,10 +1,13 @@
-- 1.3.0 | Mar 25 2026:
+- 1.4.0 | Mar 31 2026:
 
 -- New Features --
-[New] Reusable CI workflow: parallel-jobs input for BATS --jobs N parallel file execution
-      (default 0 = serial, backward compatible — consumers opt in with parallel-jobs: N)
-[New] Self-test workflow uses --jobs 2 for parallel test execution
-[New] GNU parallel installed in 7 of 9 base Docker images — debian12, ubuntu2004/2404,
-      centos7, rocky8/9/10 (via EPEL for RHEL family)
-[New] Graceful fallback: deep legacy images (centos6, ubuntu1204) without parallel
-      run tests serially with CI warning when parallel-jobs is requested
+[New] Reusable CI workflow: file-groups input for multi-container test splitting
+      (default 1 = all files in one job, backward compatible — consumers opt in
+      with file-groups: N to distribute .bats files round-robin across N matrix jobs)
+[New] Setup job: generates matrix JSON — passthrough os-only matrix for file-groups=1,
+      round-robin distribution via file-groups.sh for file-groups>1
+
+-- Changes --
+[Change] Test job: matrix sourced from setup output, TEST_TARGET falls back to
+      test-path when files not specified, artifact naming adds -g{N} suffix for
+      grouped runs, concurrency group includes group number

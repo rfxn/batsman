@@ -2,6 +2,16 @@ batsman — Shared BATS Test Infrastructure
 Copyright (C) 2002-2026 R-fx Networks <proj@rfxn.com>
 https://github.com/rfxn/batsman
 
+- 1.4.0 | Mar 31 2026:
+[New] Reusable CI workflow: file-groups input for multi-container test splitting
+      (default 1 = all files in one job, backward compatible — consumers opt in
+      with file-groups: N to distribute .bats files round-robin across N matrix jobs)
+[New] Setup job: generates matrix JSON — passthrough os-only matrix for file-groups=1,
+      round-robin distribution via file-groups.sh for file-groups>1
+[Change] Test job: matrix sourced from setup output, TEST_TARGET falls back to
+      test-path when files not specified, artifact naming adds -g{N} suffix for
+      grouped runs, concurrency group includes group number
+
 - 1.3.0 | Mar 25 2026:
 [New] Reusable CI workflow: parallel-jobs input for BATS --jobs N parallel file execution
 [New] Self-test workflow uses --jobs 2 for parallel test execution
