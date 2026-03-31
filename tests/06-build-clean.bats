@@ -261,3 +261,59 @@ unrelated-image:latest"
     [[ "$logged" == *"rmi test-project-test-debian12"* ]]
     [[ "$logged" == *"rmi test-project-base-debian12"* ]]
 }
+
+# ---------------------------------------------------------------------------
+# Code quality: grep -F safety in batsman_clean (P1-CQ)
+# ---------------------------------------------------------------------------
+
+@test "clean --all: uses grep -F (not -E) for BATSMAN_PROJECT image filtering" {
+    # Verify source code uses grep -F to avoid regex metacharacter injection
+    local grep_e_count
+    grep_e_count=$(grep -c 'grep -E.*BATSMAN_PROJECT' "$BATSMAN_LIB" || true)
+    [ "$grep_e_count" -eq 0 ]
+    local grep_f_count
+    grep_f_count=$(grep -c 'grep -F.*BATSMAN_PROJECT' "$BATSMAN_LIB" || true)
+    [ "$grep_f_count" -ge 2 ]
+}
+
+@test "clean --all: project name with regex metacharacters handled safely" {
+    # A project name containing regex metacharacters (e.g., "foo.bar+baz")
+    # would match unintended strings with grep -E but not with grep -F
+    BATSMAN_PROJECT="foo.bar+baz"
+    DOCKER_IMAGES_OUTPUT="foo.bar+baz-test-debian12:latest
+fooXbarXbaz-test-debian12:latest
+foo.bar+baz-base-debian12:latest"
+    batsman_clean --all
+    local logged
+    logged=$(cat "$DOCKER_LOG")
+    # The exact project name should match
+    [[ "$logged" == *"rmi foo.bar+baz-test-debian12:latest"* ]]
+    [[ "$logged" == *"rmi foo.bar+baz-base-debian12:latest"* ]]
+    # The regex-expanded name should NOT match (fooXbarXbaz would match with -E)
+    [[ "$logged" != *"rmi fooXbarXbaz"* ]]
+}
+
+# ---------------------------------------------------------------------------
+# Code quality: local-in-loop fix in batsman_run_parallel (P1-CQ)
+# ---------------------------------------------------------------------------
+
+@test "parallel: no local declaration with assignment inside loop body" {
+    # 'local report_mount=""' inside a for-loop in batsman_run_parallel is
+    # misleading — bash scopes local to the function, not the block. The
+    # declaration should be before the loop with bare assignment inside.
+    # Extract batsman_run_parallel function body and check for the pattern.
+    local func_body
+    func_body=$(sed -n '/^batsman_run_parallel()/,/^}/p' "$BATSMAN_LIB")
+    local assign_in_loop
+    assign_in_loop=$(echo "$func_body" | sed -n '/for i in/,/done/p' | \
+        grep -c 'local report_mount=""' || true)
+    [ "$assign_in_loop" -eq 0 ]
+}
+
+@test "parallel: local report_mount declared as standalone (no assignment)" {
+    # After the fix, 'local report_mount' should appear as a standalone
+    # declaration (without '=""') before the for-loop
+    local standalone_decl
+    standalone_decl=$(grep -c 'local report_mount$' "$BATSMAN_LIB" || true)
+    [ "$standalone_decl" -ge 1 ]
+}

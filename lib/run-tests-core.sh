@@ -30,7 +30,7 @@ fi
 # ---------------------------------------------------------------------------
 # Version
 # ---------------------------------------------------------------------------
-BATSMAN_VERSION="1.3.0"
+BATSMAN_VERSION="1.4.0"
 
 # ---------------------------------------------------------------------------
 # Internal state (set by batsman_parse_args)
@@ -330,12 +330,12 @@ batsman_clean() {
         local img
         # Remove test images first (depend on base), then base images
         for img in $(docker images --format '{{.Repository}}:{{.Tag}}' | \
-                     grep -E "^${BATSMAN_PROJECT}-test-" 2>/dev/null); do  # grep may find no matches
+                     grep -F "${BATSMAN_PROJECT}-test-" 2>/dev/null); do  # grep may find no matches
             echo "  Removing $img"
             docker rmi "$img" 2>/dev/null || true  # image may already be removed
         done
         for img in $(docker images --format '{{.Repository}}:{{.Tag}}' | \
-                     grep -E "^${BATSMAN_PROJECT}-base-" 2>/dev/null); do  # grep may find no matches
+                     grep -F "${BATSMAN_PROJECT}-base-" 2>/dev/null); do  # grep may find no matches
             echo "  Removing $img"
             docker rmi "$img" 2>/dev/null || true  # image may already be removed
         done
@@ -486,8 +486,9 @@ batsman_run_parallel() {
 
     # Launch named containers in parallel
     local -a pids
+    local report_mount
     for i in $(seq 0 $(( num_groups - 1 ))); do
-        local report_mount=""
+        report_mount=""
         if [ -n "$report_mount_base" ]; then
             mkdir -p "${report_mount_base}/group-${i}"
             report_mount="-v ${report_mount_base}/group-${i}:/reports"
