@@ -7,12 +7,14 @@
 if [[ -f /opt/batsman/lib/run-tests-core.sh ]]; then
     BATSMAN_LIB="/opt/batsman/lib/run-tests-core.sh"
     BATSMAN_DOCKERFILES="/opt/batsman/dockerfiles"
+    BATSMAN_SCRIPTS="/opt/batsman/scripts"
 else
     PROJECT_ROOT="$(cd "${BATS_TEST_DIRNAME}/.." && pwd)"
     BATSMAN_LIB="$PROJECT_ROOT/lib/run-tests-core.sh"
     BATSMAN_DOCKERFILES="$PROJECT_ROOT/dockerfiles"
+    BATSMAN_SCRIPTS="$PROJECT_ROOT/scripts"
 fi
-export BATSMAN_LIB BATSMAN_DOCKERFILES
+export BATSMAN_LIB BATSMAN_DOCKERFILES BATSMAN_SCRIPTS
 
 # Load bats-support and bats-assert
 if [[ -d /usr/local/lib/bats/bats-support ]]; then
