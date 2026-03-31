@@ -18,7 +18,7 @@ https://github.com/rfxn/batsman
 [New] GNU parallel installed in all 9 base Docker images — centos6 and ubuntu1204
       gain parallel via standalone Perl script install (7 modern/legacy images
       already had it via package manager since v1.3.0)
-[New] 12 self-tests for file-group distribution logic (JSON output, round-robin
+[New] 13 self-tests for file-group distribution logic (JSON output, round-robin
       correctness, group capping, OS cross-product, edge cases)
 [Fix] batsman_clean(): grep -E → grep -F for BATSMAN_PROJECT interpolation safety
 [Fix] batsman_run_parallel(): move local declaration before for-loop

@@ -24,12 +24,14 @@ jobs:
         run: |
           bash -n lib/run-tests-core.sh
           bash -n scripts/install-bats.sh
+          bash -n scripts/install-parallel.sh
+          bash -n scripts/file-groups.sh
           bash -n tests/run-tests.sh
           bash -n tests/helpers/batsman-common.bash
 
       - name: Shellcheck
         run: |
-          shellcheck lib/run-tests-core.sh scripts/install-bats.sh
+          shellcheck lib/run-tests-core.sh scripts/install-bats.sh scripts/install-parallel.sh scripts/file-groups.sh
           shellcheck tests/run-tests.sh tests/helpers/batsman-common.bash
 
   test:

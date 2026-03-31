@@ -11,7 +11,7 @@
       (wget/curl) and SHA256 checksum verification for deep legacy OS
 [New] GNU parallel in all 9 base Docker images — centos6 and ubuntu1204 gain
       parallel via standalone Perl script install
-[New] 12 self-tests for file-group distribution logic
+[New] 13 self-tests for file-group distribution logic
 
 -- Bug Fixes --
 [Fix] batsman_clean(): grep -E → grep -F for BATSMAN_PROJECT — eliminates regex
