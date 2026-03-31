@@ -15,7 +15,11 @@ RUN apt-get update && apt-get install -y \
     gawk sed grep gzip tar \
     wget curl ca-certificates \
     util-linux hostname \
+    bzip2 \
     && rm -rf /var/lib/apt/lists/*
 
 COPY scripts/install-bats.sh /tmp/install-bats.sh
 RUN TLS_FALLBACK=2 bash /tmp/install-bats.sh && rm -f /tmp/install-bats.sh
+
+COPY scripts/install-parallel.sh /tmp/install-parallel.sh
+RUN TLS_FALLBACK=2 bash /tmp/install-parallel.sh && rm -f /tmp/install-parallel.sh
