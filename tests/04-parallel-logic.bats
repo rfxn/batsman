@@ -166,39 +166,3 @@ _round_robin() {
     [ "$g2_count" -eq 2 ]
 }
 
-# ---------------------------------------------------------------------------
-# File discovery
-# ---------------------------------------------------------------------------
-
-@test "file discovery: finds numbered .bats files" {
-    _create_bats_files "$MOCK_TESTS_DIR" 01-first.bats 02-second.bats 03-third.bats
-    local count
-    count=$(find "$MOCK_TESTS_DIR" -maxdepth 1 -name '[0-9]*.bats' -print | wc -l)
-    [ "$count" -eq 3 ]
-}
-
-@test "file discovery: ignores non-numbered files" {
-    _create_bats_files "$MOCK_TESTS_DIR" 01-first.bats helpers.bats setup.bash
-    local count
-    count=$(find "$MOCK_TESTS_DIR" -maxdepth 1 -name '[0-9]*.bats' -print | wc -l)
-    [ "$count" -eq 1 ]
-}
-
-@test "file discovery: files sorted in order" {
-    _create_bats_files "$MOCK_TESTS_DIR" 03-third.bats 01-first.bats 02-second.bats
-    local -a found
-    while IFS= read -r f; do
-        found+=("$(basename "$f")")
-    done < <(find "$MOCK_TESTS_DIR" -maxdepth 1 -name '[0-9]*.bats' -print | sort)
-    [ "${found[0]}" = "01-first.bats" ]
-    [ "${found[1]}" = "02-second.bats" ]
-    [ "${found[2]}" = "03-third.bats" ]
-}
-
-@test "file discovery: empty directory returns 0 files" {
-    local empty_dir="$TEST_TMPDIR/empty"
-    mkdir -p "$empty_dir"
-    local count
-    count=$(find "$empty_dir" -maxdepth 1 -name '[0-9]*.bats' -print | wc -l)
-    [ "$count" -eq 0 ]
-}

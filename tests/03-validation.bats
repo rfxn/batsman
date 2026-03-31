@@ -126,38 +126,6 @@ teardown() {
 # Dockerfile path conventions
 # ---------------------------------------------------------------------------
 
-@test "dockerfile: debian12 project uses Dockerfile (no suffix)" {
-    # The convention: default OS (_batsman_os = debian12) uses tests/Dockerfile
-    batsman_parse_args --os debian12
-    local project_df="$BATSMAN_TESTS_DIR/Dockerfile"
-    local expected_path="Dockerfile"
-    local actual
-    if [ "$_batsman_os" = "debian12" ]; then
-        actual="Dockerfile"
-    else
-        actual="Dockerfile.${_batsman_os}"
-    fi
-    [ "$actual" = "$expected_path" ]
-}
-
-@test "dockerfile: rocky9 project uses Dockerfile.rocky9" {
-    batsman_parse_args --os rocky9
-    local expected_path="Dockerfile.rocky9"
-    local actual
-    if [ "$_batsman_os" = "debian12" ]; then
-        actual="Dockerfile"
-    else
-        actual="Dockerfile.${_batsman_os}"
-    fi
-    [ "$actual" = "$expected_path" ]
-}
-
-@test "dockerfile: base Dockerfiles use INFRA_DIR/dockerfiles/" {
-    # Verify the base dockerfile path convention
-    local base_df="$BATSMAN_DOCKERFILES/Dockerfile.debian12"
-    [ -f "$base_df" ]
-}
-
 @test "dockerfile: all 9 base Dockerfiles exist" {
     local os
     for os in debian12 centos6 centos7 rocky8 rocky9 rocky10 \

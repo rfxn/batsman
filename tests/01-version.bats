@@ -17,10 +17,6 @@ teardown() {
 # BATSMAN_VERSION variable
 # ---------------------------------------------------------------------------
 
-@test "BATSMAN_VERSION is set and non-empty" {
-    [ -n "$BATSMAN_VERSION" ]
-}
-
 @test "BATSMAN_VERSION matches X.Y.Z format" {
     local pattern='^[0-9]+\.[0-9]+\.[0-9]+$'
     [[ "$BATSMAN_VERSION" =~ $pattern ]]

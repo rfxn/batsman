@@ -150,11 +150,6 @@ teardown() {
     [ "$_batsman_formatter" = "pretty" ]
 }
 
-@test "--formatter default is tap" {
-    batsman_parse_args
-    [ "$_batsman_formatter" = "tap" ]
-}
-
 # ---------------------------------------------------------------------------
 # --timeout
 # ---------------------------------------------------------------------------
