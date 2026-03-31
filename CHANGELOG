@@ -11,6 +11,17 @@ https://github.com/rfxn/batsman
 [Change] Test job: matrix sourced from setup output, TEST_TARGET falls back to
       test-path when files not specified, artifact naming adds -g{N} suffix for
       grouped runs, concurrency group includes group number
+[New] scripts/file-groups.sh — standalone round-robin file distributor, outputs
+      GHA strategy.matrix JSON (os × group cross-product)
+[New] scripts/install-parallel.sh — GNU parallel installer with TLS fallback and
+      SHA256 verification for deep legacy OS
+[New] GNU parallel installed in all 9 base Docker images — centos6 and ubuntu1204
+      gain parallel via standalone Perl script install (7 modern/legacy images
+      already had it via package manager since v1.3.0)
+[New] 12 self-tests for file-group distribution logic (JSON output, round-robin
+      correctness, group capping, OS cross-product, edge cases)
+[Fix] batsman_clean(): grep -E → grep -F for BATSMAN_PROJECT interpolation safety
+[Fix] batsman_run_parallel(): move local declaration before for-loop
 
 - 1.3.0 | Mar 25 2026:
 [New] Reusable CI workflow: parallel-jobs input for BATS --jobs N parallel file execution

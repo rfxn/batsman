@@ -1,13 +1,20 @@
-- 1.4.0 | Mar 31 2026:
+- 1.4.0 | Mar 2026:
 
 -- New Features --
-[New] Reusable CI workflow: file-groups input for multi-container test splitting
-      (default 1 = all files in one job, backward compatible — consumers opt in
-      with file-groups: N to distribute .bats files round-robin across N matrix jobs)
-[New] Setup job: generates matrix JSON — passthrough os-only matrix for file-groups=1,
-      round-robin distribution via file-groups.sh for file-groups>1
+[New] CI workflow: file-groups input (default 1) — splits test files into N groups,
+      each running in a separate GHA matrix job with isolated container state.
+      Round-robin distribution by file, sorted by name (numbered convention).
+      Consumers opt in: file-groups: 4 produces 8 OS × 4 groups = 32 parallel jobs.
+[New] scripts/file-groups.sh — standalone round-robin file distributor, outputs
+      GitHub Actions strategy.matrix JSON (os × group cross-product)
+[New] scripts/install-parallel.sh — GNU parallel installer with TLS fallback
+      (wget/curl) and SHA256 checksum verification for deep legacy OS
+[New] GNU parallel in all 9 base Docker images — centos6 and ubuntu1204 gain
+      parallel via standalone Perl script install
+[New] 12 self-tests for file-group distribution logic
 
--- Changes --
-[Change] Test job: matrix sourced from setup output, TEST_TARGET falls back to
-      test-path when files not specified, artifact naming adds -g{N} suffix for
-      grouped runs, concurrency group includes group number
+-- Bug Fixes --
+[Fix] batsman_clean(): grep -E → grep -F for BATSMAN_PROJECT — eliminates regex
+      metacharacter injection risk from project names
+[Fix] batsman_run_parallel(): local declaration moved before for-loop — local
+      inside loop body is misleading (bash scopes to function, not block)

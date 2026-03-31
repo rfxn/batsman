@@ -2,7 +2,7 @@
 
 <p align="center">
   <a href="https://github.com/rfxn/batsman/actions/workflows/self-test.yml"><img src="https://github.com/rfxn/batsman/actions/workflows/self-test.yml/badge.svg?style=flat-square" alt="CI"></a>
-  <a href="CHANGELOG"><img src="https://img.shields.io/badge/version-1.3.0-blue.svg?style=flat-square" alt="Version"></a>
+  <a href="CHANGELOG"><img src="https://img.shields.io/badge/version-1.4.0-blue.svg?style=flat-square" alt="Version"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-GPL_v2-green.svg?style=flat-square" alt="License"></a>
   <a href="https://www.gnu.org/software/bash/"><img src="https://img.shields.io/badge/shell-bash-4EAA25.svg?style=flat-square" alt="Shell"></a>
   <a href="https://github.com/bats-core/bats-core"><img src="https://img.shields.io/badge/bats--core-1.13.0-orange.svg?style=flat-square" alt="BATS"></a>
@@ -72,6 +72,8 @@ include/Makefile.tests            # Parameterized Make include for consumers
 lib/run-tests-core.sh             # Parallel test orchestration engine
 lib/uat-helpers.bash              # UAT assertion helper library
 scripts/install-bats.sh           # BATS installer for Docker images
+scripts/file-groups.sh            # Round-robin file distributor for CI matrix
+scripts/install-parallel.sh       # GNU parallel installer for deep legacy OS
 .github/workflows/test.yml        # Reusable CI workflow (consumers call this)
 .github/workflows/self-test.yml   # batsman self-test CI
 tests/                            # batsman self-tests
@@ -86,10 +88,10 @@ cd your-project
 git submodule add https://github.com/rfxn/batsman.git tests/infra
 cd tests/infra
 git fetch --tags
-git checkout v1.3.0
+git checkout v1.4.0
 cd ../..
 git add tests/infra
-git commit -m "Pin batsman submodule to v1.3.0"
+git commit -m "Pin batsman submodule to v1.4.0"
 ```
 
 ### 2.1 Upgrading
@@ -99,16 +101,16 @@ Update the submodule to a new tag and update CI workflow references.
 ```bash
 cd tests/infra
 git fetch origin --tags --force
-git checkout v1.3.0
+git checkout v1.4.0
 cd ../..
 git add tests/infra
-git commit -m "Pin batsman submodule to v1.3.0"
+git commit -m "Pin batsman submodule to v1.4.0"
 ```
 
 In CI workflow callers, update the tag reference:
 
 ```yaml
-uses: rfxn/batsman/.github/workflows/test.yml@v1.3.0
+uses: rfxn/batsman/.github/workflows/test.yml@v1.4.0
 ```
 
 See the [Migration Guide](#8-migration-guide) for version-specific
@@ -122,6 +124,8 @@ upgrade notes.
 | `lib/uat-helpers.bash` | UAT assertion helper library (sourced by UAT test files) |
 | `include/Makefile.tests` | Parameterized GNU Make include with per-OS and tier targets |
 | `scripts/install-bats.sh` | BATS installer with TLS fallback for legacy OS images |
+| `scripts/file-groups.sh` | Round-robin file distributor for CI matrix splitting |
+| `scripts/install-parallel.sh` | GNU parallel installer for deep legacy OS images |
 | `dockerfiles/Dockerfile.<os>` | Base Docker images for each supported OS target |
 | `.github/workflows/test.yml` | Reusable GitHub Actions CI workflow |
 
@@ -192,6 +196,7 @@ Inputs for the reusable workflow (`.github/workflows/test.yml`).
 | `concurrency-group` | no | `""` | Concurrency group prefix |
 | `test-path` | no | `/opt/tests` | Test directory path inside container |
 | `parallel-jobs` | no | `0` | BATS parallel jobs via `--jobs N` (0 = serial) |
+| `file-groups` | no | `1` | Split test files into N groups per OS (multi-container parallelism) |
 | `reports` | no | `true` | Generate JUnit XML reports and upload as artifacts |
 
 ## 4. Usage
@@ -447,7 +452,7 @@ on:
     branches: [master]
 jobs:
   test:
-    uses: rfxn/batsman/.github/workflows/test.yml@v1.3.0
+    uses: rfxn/batsman/.github/workflows/test.yml@v1.4.0
     with:
       project-name: myproject
       os-matrix: '["debian12","centos7","rocky8","rocky9","ubuntu2004","ubuntu2404"]'
@@ -506,22 +511,58 @@ Pin the submodule to a specific tag for reproducibility:
 ```bash
 cd tests/infra
 git fetch --tags
-git checkout v1.3.0
+git checkout v1.4.0
 cd ../..
 git add tests/infra
-git commit -m "Pin batsman submodule to v1.3.0"
+git commit -m "Pin batsman submodule to v1.4.0"
 ```
 
 In CI workflow callers, reference the same tag:
 ```yaml
-uses: rfxn/batsman/.github/workflows/test.yml@v1.3.0
+uses: rfxn/batsman/.github/workflows/test.yml@v1.4.0
 ```
 
 ## 8. Migration Guide
 
 Upgrade notes for consumer projects. Newest version first.
 
-### 8.1 Upgrading to v1.3.0
+### 8.1 Upgrading to v1.4.0
+
+### File-Group Splitting
+
+The `file-groups` input splits test files across multiple GHA matrix jobs
+for multi-container parallelism. Each group runs in an isolated container
+with its own state — ideal for test suites where files share kernel or
+system resources (iptables, cgroups).
+
+```yaml
+uses: rfxn/batsman/.github/workflows/test.yml@v1.4.0
+with:
+  project-name: apf
+  os-matrix: '["debian12","rocky9"]'
+  docker-run-flags: '--privileged'
+  file-groups: 4
+```
+
+With 8 OS targets and `file-groups: 4`, this produces 32 parallel jobs.
+Each group gets a round-robin subset of `[0-9]*.bats` files sorted by name.
+
+| Setting | Behavior |
+|---------|----------|
+| `file-groups: 1` (default) | All files in one job per OS (current behavior) |
+| `file-groups: N` | N groups per OS, round-robin file distribution |
+| `file-groups` > file count | Capped at file count (no empty jobs) |
+
+`file-groups` and `parallel-jobs` are orthogonal:
+- `file-groups` splits across GHA jobs (separate containers)
+- `parallel-jobs` runs files in parallel within a container
+- A consumer can use both if their tests support concurrent execution
+
+**Deep legacy support:** All 9 base Docker images now include GNU
+`parallel`. CentOS 6 and Ubuntu 12.04 install it via a standalone Perl
+script (`scripts/install-parallel.sh`) with SHA256 verification.
+
+### 8.2 Upgrading to v1.3.0
 
 **CI parallel test execution (opt-in)**
 
@@ -543,7 +584,7 @@ each file still run sequentially. `setup_file`/`teardown_file` scoping
 is preserved. Deep legacy images (centos6, ubuntu1204) lack `parallel`
 and fall back to serial execution automatically with a CI warning.
 
-### 8.2 Upgrading to v1.0.3
+### 8.3 Upgrading to v1.0.3
 
 **SHA256 checksum verification (transparent)**
 
@@ -574,7 +615,7 @@ Flags that require a value (`--os`, `--filter`, `--filter-tags`,
 argument is missing. `--timeout` rejects non-numeric values. Unknown
 `--flags` emit a warning instead of silently routing to direct mode.
 
-### 8.3 Upgrading to v1.0.2
+### 8.4 Upgrading to v1.0.2
 
 **BATS 1.13.0 run-variable unset -- BREAKING CHANGE**
 
@@ -615,7 +656,7 @@ The reusable workflow gained `test-path`, `reports`, and
 `concurrency-group` inputs. JUnit XML reports are uploaded as artifacts
 with 14-day retention.
 
-### 8.4 Upgrading to v1.0.1
+### 8.5 Upgrading to v1.0.1
 
 **Variant mapping (new capability)**
 
