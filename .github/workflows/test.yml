@@ -149,10 +149,11 @@ jobs:
             # fail parallel mode — "Executed 0 instead of expected N tests".
             SMOKE=$(docker run --rm ${{ inputs.project-name }}-test-${{ matrix.os }} \
               bash -c 'command -v parallel >/dev/null 2>&1 || exit 1; \
-                       printf "@test \"s\" { true; }\n" > /tmp/_p.bats; \
-                       bats --jobs 1 --formatter tap /tmp/_p.bats 2>&1' \
+                       printf "@test \"a\" { true; }\n" > /tmp/_p1.bats; \
+                       printf "@test \"b\" { true; }\n" > /tmp/_p2.bats; \
+                       bats --jobs 2 --formatter tap /tmp/_p1.bats /tmp/_p2.bats 2>&1' \
             ) && SMOKE_RC=$? || SMOKE_RC=$?
-            if [ "$SMOKE_RC" -eq 0 ] && echo "$SMOKE" | grep -q "^ok 1"; then
+            if [ "$SMOKE_RC" -eq 0 ] && ! echo "$SMOKE" | grep -q "Executed 0"; then
               JOBS_FLAG="--jobs ${{ inputs.parallel-jobs }}"
             else
               echo "::warning::BATS --jobs not functional on ${{ matrix.os }} — running tests serially"

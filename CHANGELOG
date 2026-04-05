@@ -6,9 +6,9 @@ https://github.com/rfxn/batsman
 [Fix] CI workflow: parallel-jobs smoke test before enabling BATS --jobs flag.
       Deep-legacy bash (4.1 on centos6, 4.2 on ubuntu1204) silently fails BATS
       parallel mode — "Executed 0 instead of expected N tests". The smoke test
-      runs a trivial test with --jobs 1 and verifies execution; on failure, falls
-      back to serial mode with a ::warning annotation. Replaces the prior check
-      which only verified GNU parallel was installed (necessary but not sufficient).
+      runs two trivial test files with --jobs 2 to verify actual parallel execution;
+      on failure, falls back to serial mode with a ::warning annotation. Replaces
+      the prior check which only verified GNU parallel was installed.
 
 - 1.4.0 | Mar 31 2026:
 [New] Reusable CI workflow: file-groups input for multi-container test splitting
