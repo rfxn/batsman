@@ -2,6 +2,14 @@ batsman — Shared BATS Test Infrastructure
 Copyright (C) 2002-2026 R-fx Networks <proj@rfxn.com>
 https://github.com/rfxn/batsman
 
+- 1.4.1 | Apr 05 2026:
+[Fix] CI workflow: parallel-jobs smoke test before enabling BATS --jobs flag.
+      Deep-legacy bash (4.1 on centos6, 4.2 on ubuntu1204) silently fails BATS
+      parallel mode — "Executed 0 instead of expected N tests". The smoke test
+      runs a trivial test with --jobs 1 and verifies execution; on failure, falls
+      back to serial mode with a ::warning annotation. Replaces the prior check
+      which only verified GNU parallel was installed (necessary but not sufficient).
+
 - 1.4.0 | Mar 31 2026:
 [New] Reusable CI workflow: file-groups input for multi-container test splitting
       (default 1 = all files in one job, backward compatible — consumers opt in

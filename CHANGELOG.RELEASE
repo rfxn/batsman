@@ -1,3 +1,10 @@
+- 1.4.1 | Apr 2026:
+
+-- Bug Fixes --
+[Fix] CI workflow: BATS --jobs smoke test on deep-legacy targets. Bash 4.1/4.2
+      silently fails parallel mode; smoke test verifies execution before enabling
+      --jobs, falls back to serial with ::warning annotation on failure.
+
 - 1.4.0 | Mar 2026:
 
 -- New Features --

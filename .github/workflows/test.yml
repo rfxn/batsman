@@ -144,11 +144,18 @@ jobs:
             REPORT_MOUNT="-v ${{ runner.temp }}/reports:/reports"
           fi
           if [ "${{ inputs.parallel-jobs }}" -gt 0 ]; then
-            if docker run --rm ${{ inputs.project-name }}-test-${{ matrix.os }} \
-                 sh -c 'command -v parallel >/dev/null 2>&1'; then
+            # Verify both GNU parallel and BATS --jobs work on this image.
+            # Deep-legacy bash (4.1/4.2 on centos6/ubuntu1204) can silently
+            # fail parallel mode — "Executed 0 instead of expected N tests".
+            SMOKE=$(docker run --rm ${{ inputs.project-name }}-test-${{ matrix.os }} \
+              bash -c 'command -v parallel >/dev/null 2>&1 || exit 1; \
+                       printf "@test \"s\" { true; }\n" > /tmp/_p.bats; \
+                       bats --jobs 1 --formatter tap /tmp/_p.bats 2>&1' \
+            ) && SMOKE_RC=$? || SMOKE_RC=$?
+            if [ "$SMOKE_RC" -eq 0 ] && echo "$SMOKE" | grep -q "^ok 1"; then
               JOBS_FLAG="--jobs ${{ inputs.parallel-jobs }}"
             else
-              echo "::warning::GNU parallel not found in ${{ matrix.os }} image — running tests serially"
+              echo "::warning::BATS --jobs not functional on ${{ matrix.os }} — running tests serially"
             fi
           fi
           TEST_TARGET="${{ matrix.files || inputs.test-path }}"
