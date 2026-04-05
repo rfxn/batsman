@@ -2,6 +2,12 @@ batsman — Shared BATS Test Infrastructure
 Copyright (C) 2002-2026 R-fx Networks <proj@rfxn.com>
 https://github.com/rfxn/batsman
 
+- 1.4.2 | Apr 05 2026:
+[New] CI workflow: runs-on input for test jobs (default: ubuntu-latest).
+      Allows consumers to target self-hosted runners without forking the
+      workflow. Setup job remains on ubuntu-latest (lightweight, no Docker).
+      Non-breaking — omitting the input preserves existing behavior.
+
 - 1.4.1 | Apr 05 2026:
 [Fix] CI workflow: parallel-jobs smoke test before enabling BATS --jobs flag.
       Deep-legacy bash (4.1 on centos6, 4.2 on ubuntu1204) silently fails BATS

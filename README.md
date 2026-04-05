@@ -2,7 +2,7 @@
 
 <p align="center">
   <a href="https://github.com/rfxn/batsman/actions/workflows/self-test.yml"><img src="https://github.com/rfxn/batsman/actions/workflows/self-test.yml/badge.svg?style=flat-square" alt="CI"></a>
-  <a href="CHANGELOG"><img src="https://img.shields.io/badge/version-1.4.1-blue.svg?style=flat-square" alt="Version"></a>
+  <a href="CHANGELOG"><img src="https://img.shields.io/badge/version-1.4.2-blue.svg?style=flat-square" alt="Version"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-GPL_v2-green.svg?style=flat-square" alt="License"></a>
   <a href="https://www.gnu.org/software/bash/"><img src="https://img.shields.io/badge/shell-bash-4EAA25.svg?style=flat-square" alt="Shell"></a>
   <a href="https://github.com/bats-core/bats-core"><img src="https://img.shields.io/badge/bats--core-1.13.0-orange.svg?style=flat-square" alt="BATS"></a>

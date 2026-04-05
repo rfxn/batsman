@@ -1,3 +1,10 @@
+- 1.4.2 | Apr 2026:
+
+-- New Features --
+[New] CI workflow: runs-on input for test jobs. Consumers can pass
+      runs-on: 'self-hosted' to run tests on self-hosted runners.
+      Default: 'ubuntu-latest' (no change required for existing consumers).
+
 - 1.4.1 | Apr 2026:
 
 -- Bug Fixes --
