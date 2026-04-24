@@ -30,8 +30,8 @@ teardown() {
     [ "$BATSMAN_VERSION" = "$src_version" ]
 }
 
-@test "BATSMAN_VERSION is 1.4.0" {
-    [ "$BATSMAN_VERSION" = "1.4.0" ]
+@test "BATSMAN_VERSION is 1.4.3" {
+    [ "$BATSMAN_VERSION" = "1.4.3" ]
 }
 
 # ---------------------------------------------------------------------------

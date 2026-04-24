@@ -66,6 +66,19 @@ on:
         required: false
         default: 'ubuntu-latest'
         description: 'Runner label for test jobs (e.g., ubuntu-latest, self-hosted)'
+      base-os-map:
+        type: string
+        required: false
+        default: ''
+        description: 'Variant→base OS mappings, space-separated key=value pairs (e.g., "yara-x=debian12 modsec=rocky9"). Identity applied to OSes not listed.'
+
+# Trust boundary: workflow_call inputs are interpolated into shell `run:` blocks
+# by the GHA runner before the shell sees them — quoting in YAML does NOT
+# protect against caller-supplied shell metacharacters. The setup job below
+# validates numeric/charset-constrained inputs and fails closed on violation.
+# Free-form inputs (docker-run-flags, runs-on, concurrency-group) are trusted
+# to the calling workflow author per workflow_call semantics — only consume
+# this workflow from trusted callers.
 
 jobs:
   setup:
@@ -73,25 +86,76 @@ jobs:
     outputs:
       matrix: ${{ steps.matrix.outputs.result }}
     steps:
-      - name: Checkout (file-group discovery)
-        if: inputs.file-groups > 1
+      # Inputs are passed via `env:` (not direct ${{ }} interpolation) per GitHub
+      # script-injection hardening guidance: direct interpolation expands the
+      # value into the shell script BEFORE the shell parses it, so a malicious
+      # value like `foo"; rm -rf /; echo "0` would execute. Through `env:` the
+      # shell receives the value as a literal variable.
+      - name: Validate inputs
+        env:
+          IN_TIMEOUT: ${{ inputs.timeout }}
+          IN_PARALLEL_JOBS: ${{ inputs.parallel-jobs }}
+          IN_FILE_GROUPS: ${{ inputs.file-groups }}
+          IN_TEST_PATH: ${{ inputs.test-path }}
+          IN_DOCKERFILE_DIR: ${{ inputs.dockerfile-dir }}
+          IN_PROJECT_NAME: ${{ inputs.project-name }}
+        run: |
+          int_pat='^[0-9]+$'
+          # Upper bounds prevent catastrophic misconfiguration (e.g.,
+          # file-groups=99999 silently emitting a 99999-entry matrix that
+          # exhausts GHA matrix cap and bills minutes for nothing). These
+          # are deliberately well above realistic usage.
+          for triple in \
+              "timeout=$IN_TIMEOUT=360" \
+              "parallel-jobs=$IN_PARALLEL_JOBS=64" \
+              "file-groups=$IN_FILE_GROUPS=64"; do
+              name="${triple%%=*}"
+              rest="${triple#*=}"
+              val="${rest%=*}"
+              max="${rest##*=}"
+              if ! [[ "$val" =~ $int_pat ]]; then
+                  echo "::error::input '$name' must be a non-negative integer, got '$val'"
+                  exit 1
+              fi
+              if [ "$val" -gt "$max" ]; then
+                  echo "::error::input '$name' must be <= $max, got '$val'"
+                  exit 1
+              fi
+          done
+          path_pat='^[a-zA-Z0-9._/-]+$'
+          for pair in \
+              "test-path=$IN_TEST_PATH" \
+              "dockerfile-dir=$IN_DOCKERFILE_DIR" \
+              "project-name=$IN_PROJECT_NAME"; do
+              name="${pair%%=*}"
+              val="${pair#*=}"
+              if ! [[ "$val" =~ $path_pat ]]; then
+                  echo "::error::input '$name' must match $path_pat, got '$val'"
+                  exit 1
+              fi
+          done
+
+      - name: Checkout (matrix generation)
         uses: actions/checkout@v4
         with:
           submodules: recursive
 
       - name: Generate test matrix
         id: matrix
+        env:
+          IN_DOCKERFILE_DIR: ${{ inputs.dockerfile-dir }}
+          IN_FILE_GROUPS: ${{ inputs.file-groups }}
+          IN_TEST_PATH: ${{ inputs.test-path }}
+          IN_OS_MATRIX: ${{ inputs.os-matrix }}
+          IN_BASE_OS_MAP: ${{ inputs.base-os-map }}
         run: |
-          if [ "${{ inputs.file-groups }}" -le 1 ]; then
-            echo "result={\"os\":${{ inputs.os-matrix }}}" >> "$GITHUB_OUTPUT"
-          else
-            RESULT=$(bash "${{ inputs.dockerfile-dir }}/infra/scripts/file-groups.sh" \
-              "${{ inputs.dockerfile-dir }}" \
-              "${{ inputs.file-groups }}" \
-              "${{ inputs.test-path }}" \
-              '${{ inputs.os-matrix }}')
-            echo "result=${RESULT}" >> "$GITHUB_OUTPUT"
-          fi
+          RESULT=$(bash "$IN_DOCKERFILE_DIR/infra/scripts/file-groups.sh" \
+              "$IN_DOCKERFILE_DIR" \
+              "$IN_FILE_GROUPS" \
+              "$IN_TEST_PATH" \
+              "$IN_OS_MATRIX" \
+              "$IN_BASE_OS_MAP")
+          echo "result=${RESULT}" >> "$GITHUB_OUTPUT"
 
   test:
     needs: setup
@@ -115,15 +179,15 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Build base image (${{ matrix.os }})
+      - name: Build base image (${{ matrix.base_os }})
         uses: docker/build-push-action@v6
         with:
           context: ${{ inputs.dockerfile-dir }}/infra
-          file: ${{ inputs.dockerfile-dir }}/infra/dockerfiles/Dockerfile.${{ matrix.os }}
-          tags: ${{ inputs.project-name }}-base-${{ matrix.os }}
+          file: ${{ inputs.dockerfile-dir }}/infra/dockerfiles/Dockerfile.${{ matrix.base_os }}
+          tags: ${{ inputs.project-name }}-base-${{ matrix.base_os }}
           load: true
-          cache-from: type=gha,scope=base-${{ matrix.os }}
-          cache-to: type=gha,mode=max,scope=base-${{ matrix.os }}
+          cache-from: type=gha,scope=base-${{ matrix.base_os }}
+          cache-to: type=gha,mode=max,scope=base-${{ matrix.base_os }}
 
       - name: Build project image (${{ matrix.os }})
         run: |
@@ -133,7 +197,7 @@ jobs:
             DOCKERFILE="${{ inputs.dockerfile-dir }}/Dockerfile.${{ matrix.os }}"
           fi
           docker build \
-            --build-arg "BASE_IMAGE=${{ inputs.project-name }}-base-${{ matrix.os }}" \
+            --build-arg "BASE_IMAGE=${{ inputs.project-name }}-base-${{ matrix.base_os }}" \
             -f "$DOCKERFILE" \
             -t "${{ inputs.project-name }}-test-${{ matrix.os }}" \
             .

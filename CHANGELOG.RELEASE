@@ -1,3 +1,40 @@
+- 1.4.3 | Apr 2026:
+
+-- New Features --
+[New] CI workflow: base-os-map input wires BATSMAN_BASE_OS_MAP through to the
+      matrix, so consumers using variant→base mappings (e.g., LMD's yara-x →
+      debian12) build the correct base Dockerfile in CI. Identity applied to
+      OSes without a mapping (backward compatible — omit the input to preserve
+      existing behavior).
+
+-- Bug Fixes --
+[Fix] BATSMAN_VERSION constant bumped to 1.4.3 — was stale at 1.4.1 across
+      the v1.4.2 release; every --version/--help printed the wrong version.
+[Fix] file-groups.sh + parallel-mode test discovery: reject .bats filenames not
+      matching ^[0-9][a-zA-Z0-9._-]*\.bats$. Closes JSON-injection and
+      shell-word-split vectors at the matrix.files boundary that reached
+      unquoted shell context downstream.
+[Fix] base-os-map charset gate in BOTH file-groups.sh and the local lib
+      (BATSMAN_BASE_OS_MAP resolver): reject map entries with whitespace or
+      shell-metachars in keys or values — `for entry in $var` IFS-splits and
+      a malformed entry would silently yield wrong build targets.
+[Fix] CI workflow input hardening: numeric inputs (timeout, parallel-jobs,
+      file-groups) and path-charset inputs (test-path, dockerfile-dir,
+      project-name) validated in a setup-job gate and consumed via env: rather
+      than direct ${{ }} interpolation, per GitHub script-injection guidance.
+      Numeric inputs also bounded above (parallel-jobs/file-groups <= 64,
+      timeout <= 360 GHA cap) to prevent catastrophic misconfiguration.
+      Free-form inputs (docker-run-flags, runs-on, concurrency-group) remain
+      caller-trusted and are documented as such.
+
+-- Changes --
+[Change] file-groups.sh always emits the `include` matrix shape (drops the
+         legacy file-groups<=1 simple-form). num-groups<=1 omits group/files
+         keys to keep matrix.group falsy in concurrency/artifact-name
+         expressions — preserves v1.4.2 behavior for default consumers.
+[Change] BATSMAN_CONTAINER_TEST_PATH header documents the no-space and
+         filename-charset constraints that callers must honor.
+
 - 1.4.2 | Apr 2026:
 
 -- New Features --

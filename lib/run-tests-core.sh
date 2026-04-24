@@ -12,7 +12,12 @@
 #   BATSMAN_PROJECT_DIR        Project root (Docker build context)
 #   BATSMAN_TESTS_DIR          Directory containing .bats files
 #   BATSMAN_INFRA_DIR          Path to batsman submodule (tests/infra)
-#   BATSMAN_CONTAINER_TEST_PATH  Test directory path inside container
+#   BATSMAN_CONTAINER_TEST_PATH  Test directory path inside container.
+#                                Must NOT contain spaces — paths are passed
+#                                space-joined to bats and shell-split at the
+#                                use site (lib:455,501; scripts/file-groups.sh).
+#                                Test filenames must match [0-9][a-zA-Z0-9._-]*\.bats
+#                                (enforced by scripts/file-groups.sh).
 #   BATSMAN_SUPPORTED_OS       Space-separated list of supported OS targets
 #
 # Optional variables:
@@ -30,7 +35,7 @@ fi
 # ---------------------------------------------------------------------------
 # Version
 # ---------------------------------------------------------------------------
-BATSMAN_VERSION="1.4.1"
+BATSMAN_VERSION="1.4.3"
 
 # ---------------------------------------------------------------------------
 # Internal state (set by batsman_parse_args)
@@ -245,8 +250,15 @@ _batsman_resolve_base_os() {
     local os="$1"
     local base_os="$os"
     if [ -n "${BATSMAN_BASE_OS_MAP:-}" ]; then
-        local _map_entry
+        # `for entry in $VAR` IFS-splits on whitespace; reject space-in-value
+        # entries up-front (audit-symmetric with file-groups.sh charset gate)
+        # so a malformed map fails loudly instead of resolving to wrong base.
+        local _map_entry _map_pat='^[a-zA-Z0-9._-]+=[a-zA-Z0-9._-]+$'
         for _map_entry in $BATSMAN_BASE_OS_MAP; do
+            if ! [[ "$_map_entry" =~ $_map_pat ]]; then
+                echo "Error: BATSMAN_BASE_OS_MAP entry '$_map_entry' violates charset $_map_pat" >&2
+                return 1
+            fi
             if [ "${_map_entry%%=*}" = "$os" ]; then
                 base_os="${_map_entry#*=}"
                 break
@@ -421,10 +433,21 @@ batsman_run_parallel() {
         [ "$num_groups" -lt 1 ] && num_groups=1
     fi
 
-    # Discover test files (sorted by name — numbered convention ensures order)
+    # Discover test files (sorted by name — numbered convention ensures order).
+    # Filename charset is enforced for symmetry with scripts/file-groups.sh: the
+    # space-joined paths in group_files[] are passed unquoted to bats (line 501),
+    # so any whitespace or shell-metachar in a filename would silently word-split
+    # or inject. Reject early with a clear diagnostic.
     local test_files=()
-    local f
+    local f fname
+    local fname_pattern='^[0-9][a-zA-Z0-9._-]*\.bats$'
     while IFS= read -r f; do
+        fname="$(basename "$f")"
+        if ! [[ "$fname" =~ $fname_pattern ]]; then
+            echo "Error: test filename '$fname' violates charset $fname_pattern" >&2
+            echo "       (parallel mode requires POSIX-portable .bats names)" >&2
+            return 1
+        fi
         test_files+=("$f")
     done < <(find "$BATSMAN_TESTS_DIR" -maxdepth 1 -name '[0-9]*.bats' -print | sort)
 

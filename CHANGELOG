@@ -2,6 +2,50 @@ batsman — Shared BATS Test Infrastructure
 Copyright (C) 2002-2026 R-fx Networks <proj@rfxn.com>
 https://github.com/rfxn/batsman
 
+- 1.4.3 | Apr 24 2026:
+[Fix] BATSMAN_VERSION constant bumped to 1.4.3 — was stale at 1.4.1 across the
+      v1.4.2 release (drift since the v1.4.1 tag); every --version/--help
+      printed the wrong version. Test 01-version.bats updated to assert
+      current version (and now tracks the active release, not a hardcoded
+      historical value).
+[New] CI workflow: base-os-map input wires BATSMAN_BASE_OS_MAP through the
+      setup job → matrix.base_os, so consumers using variant→base mappings
+      (e.g., LMD's yara-x=debian12) build the right base Dockerfile in CI.
+      Identity applied to OSes without a mapping (backward compatible).
+[New] scripts/file-groups.sh: 5th argument base-os-map; always emits include
+      array (drops the file-groups<=1 simple form); OS+filename charset
+      validation on every input. num-groups<=1 omits group/files keys to
+      preserve matrix.group=falsy semantics for concurrency/artifact names.
+[Fix] file-groups.sh + lib/run-tests-core.sh batsman_run_parallel: reject
+      .bats filenames not matching ^[0-9][a-zA-Z0-9._-]*\.bats$ — closes
+      JSON-injection / shell-word-split vector at the matrix.files boundary.
+[Fix] CI workflow: numeric inputs (timeout, parallel-jobs, file-groups) and
+      path-charset inputs (test-path, dockerfile-dir, project-name) validated
+      in setup job, fail-closed with ::error on violation. Inputs reach shell
+      via env: (not direct ${{ }} interpolation) per GitHub script-injection
+      hardening guidance — direct interpolation expanded values into the
+      script before bash parsed it.
+[New] BATSMAN_CONTAINER_TEST_PATH header documents no-space + filename-charset
+      constraints; trust-boundary comment added to .github/workflows/test.yml
+      for free-form inputs (docker-run-flags, runs-on, concurrency-group).
+[Fix] base-os-map charset gate (audit-symmetric): `for entry in $base_os_map`
+      IFS-splits on whitespace, so a value containing a space would silently
+      yield the wrong build target. Both file-groups.sh _resolve_base_os and
+      lib/run-tests-core.sh _batsman_resolve_base_os now reject map entries
+      not matching ^[a-zA-Z0-9._-]+=[a-zA-Z0-9._-]+$ with a clear diagnostic.
+[Fix] CI workflow: upper bounds on parallel-jobs (<=64) and file-groups (<=64),
+      timeout (<=360 GHA cap). Prevents catastrophic misconfiguration like
+      file-groups=99999 silently emitting a 99999-entry matrix.
+[Change] file-groups.sh: extract _emit_os_only_include() helper — dedupes the
+         no-files and num-groups<=1 emit blocks (previously 12 lines duplicated).
+[New] README §3.4: documents `runs-on` (was missing since 1.4.2) and the new
+      `base-os-map` workflow input with charset and identity-fallback semantics.
+[New] 12 new self-tests in 09-file-groups.bats: filename charset rejection
+      (space, double-quote, command-substitution), non-integer num-groups,
+      malformed os-name, base-os-map identity / single / multi mapping, base_os
+      preservation across grouped entries, base-os-map charset rejection
+      (space-in-value, missing = separator).
+
 - 1.4.2 | Apr 05 2026:
 [New] CI workflow: runs-on input for test jobs (default: ubuntu-latest).
       Allows consumers to target self-hosted runners without forking the

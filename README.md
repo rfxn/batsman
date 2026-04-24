@@ -198,6 +198,8 @@ Inputs for the reusable workflow (`.github/workflows/test.yml`).
 | `parallel-jobs` | no | `0` | BATS parallel jobs via `--jobs N` (0 = serial) |
 | `file-groups` | no | `1` | Split test files into N groups per OS (multi-container parallelism) |
 | `reports` | no | `true` | Generate JUnit XML reports and upload as artifacts |
+| `runs-on` | no | `ubuntu-latest` | Runner label for test jobs (e.g., `self-hosted`) |
+| `base-os-map` | no | `""` | Variant→base OS mappings, space-separated `key=value` pairs (e.g., `"yara-x=debian12 modsec=rocky9"`). Identity applied to OSes without a mapping. Each key/value must match `[a-zA-Z0-9._-]+`. |
 
 ## 4. Usage
 
